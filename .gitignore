@@ -1,0 +1,54 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Claude Code
+.claude/
+
+# Training artifacts (regenerate, don't commit)
+logs/
+plots/
+figures/
+figures_from_saved/
+results/
+
+# Model checkpoints (too large for git)
+models/*.zip
+models/checkpoint_*.zip
+models/sac_anaesthesia_seed42_*/
+models/gpu_test/
+models/propofol_only/
+*.npz
+
+# Keep only training logs if needed
+!models/training_logs.npz
+
+# Course materials (don't redistribute)
+*.pdf
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Distribution
+dist/
+build/
+*.egg-info/
