@@ -2,7 +2,7 @@
 
 **Reinforcement learning for BIS-guided propofol delivery using the Eleveld PK/PD model**
 
-This project implements a Soft Actor-Critic (SAC) agent that learns to control depth of anaesthesia by maintaining the Bispectral Index (BIS) at a target of 50. The environment simulates realistic patient pharmacokinetics using the Eleveld 2018 propofol model.
+This project implements a Soft Actor-Critic (SAC) agent that learns to control anaesthesia by maintaining the Bispectral Index (BIS) at a target of 50. The environment simulates realistic patient pharmacokinetics using the Eleveld 2018 propofol model.
 
 **Course:** BIOE70077 Reinforcement Learning for Bioengineers, Imperial College London
 
@@ -12,30 +12,12 @@ This project implements a Soft Actor-Critic (SAC) agent that learns to control d
 # Install dependencies
 pip install -r requirements.txt
 
-# Train SAC agent (100k steps)
+# Train SAC agent default is 100k steps
 python train_sac.py
 
-# Evaluate trained agent vs PID baseline
-python run_evaluation.py
-
-# Generate figures
+# To generate figures
 python generate_training_figures.py
 python generate_animations.py
-```
-
-## Project Structure
-
-```
-├── AnesthesiaEnv.py          # Gymnasium environment (two-phase control)
-├── EleveldPatient.py         # Eleveld 2018 propofol PK/PD model
-├── train_sac.py              # SAC training script
-├── evaluate.py               # Evaluation metrics (MDPE, MDAPE, TiT)
-├── run_evaluation.py         # Full SAC vs PID comparison
-├── pid_baseline.py           # PID controller for comparison
-├── generate_training_figures.py   # Training curves and analysis
-├── generate_animations.py    # Episode visualization GIFs
-├── visualize.py              # Additional plotting utilities
-└── requirements.txt
 ```
 
 ## Environment Design
@@ -90,18 +72,12 @@ reward = r_bis - r_bolus - r_smooth - r_transition - r_safety
 | Parameter | Safe Range | Action on Violation |
 |-----------|------------|---------------------|
 | BIS | 20-95 | Episode termination |
-| MAP | 50-110 mmHg | Episode termination |
 
 Safety checks activate after 120 steps (2 minutes) to allow induction.
 
 ## Patient Model
 
 The environment uses the **Eleveld 2018 Propofol PK/PD model**:
-
-- 3-compartment mammillary pharmacokinetic model
-- Effect-site compartment with ke0 for plasma-effect delay
-- Sigmoid Emax pharmacodynamic model for BIS response
-- Allometric scaling based on patient covariates
 
 ### Patient Pool
 
@@ -121,10 +97,6 @@ Training and evaluation use the same 5 patients for fair comparison:
 # Default training (100k steps)
 python train_sac.py
 
-# Custom settings
-python train_sac.py --total_timesteps 200000 --seed 123 --eval_freq 10000
-```
-
 ### SAC Hyperparameters
 
 | Parameter | Value |
@@ -142,9 +114,6 @@ Following Varvel et al. (1992) for anaesthesia performance:
 
 | Metric | Formula | Clinical Target |
 |--------|---------|-----------------|
-| **MDPE** (Bias) | Median of prediction error % | ±10% |
-| **MDAPE** (Inaccuracy) | Median of \|prediction error %\| | <20% |
-| **Wobble** (Variability) | Median of \|PE - MDPE\| | <15% |
 | **Time in Target** | % of steps with BIS in [40, 60] | >80% |
 
 ## References
