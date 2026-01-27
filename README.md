@@ -93,7 +93,7 @@ Training and evaluation use the same 5 patients for fair comparison:
 
 ## Training
 
-```bash
+
 # Default training (100k steps)
 python train_sac.py
 
@@ -129,11 +129,3 @@ Following Varvel et al. (1992) for anaesthesia performance:
 
 ### Implementation
 - Stable-Baselines3: [https://stable-baselines3.readthedocs.io/](https://stable-baselines3.readthedocs.io/)
-
-## License
-
-MIT License. See [LICENSE](LICENSE) for details.
-
----
-
-**Disclaimer**: This is an educational project. Clinical deployment of autonomous anaesthesia systems requires extensive validation, regulatory approval, and compliance with medical device standards.
