@@ -15,15 +15,15 @@ env/
 *.swo
 .DS_Store
 
-# Claude Code
-.claude/
-
 # Training artifacts (regenerate, don't commit)
 logs/
 plots/
 figures/
 figures_from_saved/
-results/
+results/*
+!results/benchmark.*
+!results/pid_gains.json
+!results/learning_curve_*.json
 
 # Model checkpoints (too large for git)
 models/*.zip
