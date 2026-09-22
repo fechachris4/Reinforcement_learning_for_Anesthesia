@@ -52,3 +52,10 @@ htmlcov/
 dist/
 build/
 *.egg-info/
+logs_seed*.txt
+train_done.flag
+run_all.sh
+media/test.mp4
+media/test_final.png
+logs_residual*.txt
+video.log

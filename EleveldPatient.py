@@ -23,7 +23,7 @@ Author: Christian Akabueze, Imperial College London,BIOE70077 Coursework
 """
 
 import numpy as np
-from scipy.integrate import solve_ivp
+from scipy.linalg import expm
 from math import exp, pow
 from typing import Tuple, List, Optional
 from dataclasses import dataclass
@@ -72,7 +72,8 @@ class EleveldPatient:
         weight: float,
         gender: str,
         height: float,
-        opioid_switch: bool = True
+        opioid_switch: bool = True,
+        variability: Optional[dict] = None,
     ):
         """
         Initialise patient with demographic covariates.
@@ -83,6 +84,9 @@ class EleveldPatient:
             gender: Patient gender ('m' for male, 'f' for female)
             height: Patient height in cm (valid range: 100-220)
             opioid_switch: Whether opioids are co-administered (affects propofol PK)
+            variability: Optional multiplicative inter-patient factors, e.g.
+                {'V1': 1.2, 'Cl': 0.8, 'ke0': 1.1, 'Ce50': 0.9} and an additive
+                'E0' offset. None gives the population-typical patient.
         
         Raises:
             ValueError: If covariates are outside validated ranges
@@ -105,6 +109,9 @@ class EleveldPatient:
         self._calc_propofol_coefficients()
         self._calc_remifentanil_coefficients()
         self._calc_pd_parameters()
+        self.variability = dict(variability or {})
+        self._apply_variability()
+        self._discrete_cache = {}
         
         # Store previous action for rate-of-change calculations
         self.prev_action = np.zeros(2)
@@ -285,6 +292,55 @@ class EleveldPatient:
         self.k21_p = self.Q2_p / self.V2_p      # V2 -> Central
         self.k13_p = self.Q3_p / self.V1_p      # Central -> V3
         self.k31_p = self.Q3_p / self.V3_p      # V3 -> Central
+
+    def _apply_variability(self) -> None:
+        """Scale PK/PD parameters by patient-specific factors, then rebuild rate constants."""
+        v = self.variability
+        self.V1_p *= v.get('V1', 1.0)
+        self.V2_p *= v.get('V2', 1.0)
+        self.V3_p *= v.get('V3', 1.0)
+        self.Cl_p *= v.get('Cl', 1.0)
+        self.Q2_p *= v.get('Q2', 1.0)
+        self.Q3_p *= v.get('Q3', 1.0)
+        self.ke0_p *= v.get('ke0', 1.0)
+        self.Ce50_prop_base *= v.get('Ce50', 1.0)
+        self.E0 += v.get('E0', 0.0)
+        self.k10_p = self.Cl_p / self.V1_p
+        self.k12_p = self.Q2_p / self.V1_p
+        self.k21_p = self.Q2_p / self.V2_p
+        self.k13_p = self.Q3_p / self.V1_p
+        self.k31_p = self.Q3_p / self.V3_p
+
+    def _system_matrices(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Continuous-time linear system dx/dt = A x + B u for the 8-state PK model."""
+        A = np.zeros((8, 8))
+        p = [self.k10_p, self.k12_p, self.k21_p, self.k13_p, self.k31_p, self.ke0_p, self.V1_p]
+        r = [self.k10_r, self.k12_r, self.k21_r, self.k13_r, self.k31_r, self.ke0_r, self.V1_r]
+        for o, (k10, k12, k21, k13, k31, ke0, V1) in zip((0, 4), (p, r)):
+            A[o, o] = -(k10 + k12 + k13)
+            A[o, o + 1] = k21
+            A[o, o + 2] = k31
+            A[o + 1, o] = k12
+            A[o + 1, o + 1] = -k21
+            A[o + 2, o] = k13
+            A[o + 2, o + 2] = -k31
+            A[o + 3, o] = ke0 / V1
+            A[o + 3, o + 3] = -ke0
+        B = np.zeros((8, 2))
+        B[0, 0] = 1.0
+        B[4, 1] = 1.0
+        return A, B
+
+    def _discrete(self, dt: float) -> Tuple[np.ndarray, np.ndarray]:
+        """Exact zero-order-hold discretisation, cached per step size."""
+        if dt not in self._discrete_cache:
+            A, B = self._system_matrices()
+            M = np.zeros((10, 10))
+            M[:8, :8] = A
+            M[:8, 8:] = B
+            E = expm(M * dt)
+            self._discrete_cache[dt] = (E[:8, :8], E[:8, 8:])
+        return self._discrete_cache[dt]
 
     def _calc_remifentanil_coefficients(self) -> None:
         """
@@ -478,19 +534,10 @@ class EleveldPatient:
         u_prop = max(0, u_prop)
         u_remi = max(0, u_remi)
         
-        # Integrate ODEs using LSODA (adaptive step size, handles stiff systems)
-        sol = solve_ivp(
-            self.get_derivatives,
-            [0, dt],
-            self.state,
-            args=(u_prop, u_remi),
-            method='LSODA',
-            rtol=1e-6,
-            atol=1e-9
-        )
-        
-        # Update state to end of integration
-        self.state = sol.y[:, -1]
+        # The PK model is linear, so the zero-order-hold update is exact:
+        # x[k+1] = Ad x[k] + Bd u[k]. This is ~100x faster than an ODE solver.
+        Ad, Bd = self._discrete(dt)
+        self.state = Ad @ self.state + Bd @ np.array([u_prop, u_remi])
         
         # Ensure non-negative concentrations (numerical stability)
         self.state = np.maximum(self.state, 0)
