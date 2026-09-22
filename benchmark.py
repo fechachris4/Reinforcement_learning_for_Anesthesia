@@ -99,15 +99,15 @@ def style(ax):
 
 def figure_paired(pp):
     fig, ax = plt.subplots(figsize=(4.4, 4.2), dpi=150)
-    ax.plot([0, 100], [0, 100], color='#9CA3AF', lw=1, ls='--')
+    ax.plot([20, 100], [20, 100], color='#9CA3AF', lw=1, ls='--')
     for n, mk in (('SAC', 'o'), ('PID + SAC', '^')):
         if n in pp:
             ax.scatter(pp['PID'], pp[n], s=34, color=C[n], alpha=0.85, label=n, marker=mk, lw=0)
     ax.set_xlabel('PID, time in 40-60 (%)', fontsize=12)
     ax.set_ylabel('RL, time in 40-60 (%)', fontsize=12)
-    ax.set_xticks([0, 25, 50, 75, 100]); ax.set_yticks([0, 25, 50, 75, 100])
-    ax.set_xlim(0, 100); ax.set_ylim(0, 100); style(ax)
-    ax.legend(frameon=False, loc='lower right', fontsize=11, handletextpad=0.2)
+    ax.set_xticks([20, 40, 60, 80, 100]); ax.set_yticks([20, 40, 60, 80, 100])
+    ax.set_xlim(18, 101); ax.set_ylim(18, 101); style(ax)
+    ax.legend(frameon=False, loc='upper left', fontsize=11, handletextpad=0.2)
     fig.tight_layout(); fig.savefig('media/paired_patients.png'); plt.close(fig)
 
 
@@ -115,9 +115,13 @@ def figure_traces(models, idx=(0, 3, 8, 11, 19, 26)):
     pats = test_patients(30)
     fig, axes = plt.subplots(2, 3, figsize=(12, 5.6), dpi=120, sharex=True, sharey=True)
     for ax, i in zip(axes.flat, idx):
-        for lab, ctrl in models.items():
+        for k, (lab, ctrl) in enumerate(models.items()):
             tr = run_episode(ctrl, pats[i], TEST_NOISE_OFFSET + i)
-            ax.plot([s['time_min'] for s in tr], [s['bis'] for s in tr], color=C[lab], lw=1.4, label=lab)
+            t = np.array([s['time_min'] for s in tr])
+            if k == 0:   # stimulation timing is identical for every controller
+                stim = np.array([s['disturbance'] for s in tr]) > 0.5
+                ax.fill_between(t, 0, 100, where=stim, color='#9CA3AF', alpha=0.18, lw=0)
+            ax.plot(t, [s['bis'] for s in tr], color=C[lab], lw=1.4, label=lab)
         ax.axhspan(40, 60, color=C_TARGET, alpha=0.1, lw=0)
         ax.text(0.98, 0.97, describe(pats[i]), transform=ax.transAxes, fontsize=11, va='top', ha='right')
         ax.set_ylim(0, 100); ax.set_xlim(0, 40); ax.set_xticks([0, 10, 20, 30, 40]); style(ax)
