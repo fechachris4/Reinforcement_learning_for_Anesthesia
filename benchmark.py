@@ -147,8 +147,7 @@ def figure_traces(models, idx=(0, 3, 8, 11, 19, 26)):
                 ax.fill_between(t, 0, 100, where=stim, color='#9CA3AF', alpha=0.18, lw=0)
             ax.plot(t, [s['bis'] for s in tr], color=C[lab], lw=1.6, label=lab)
         ax.axhspan(40, 60, color=C_TARGET, alpha=0.18, lw=0)
-        ax.text(0.98, 0.97, describe(pats[i]), transform=ax.transAxes, fontsize=11, va='top', ha='right',
-                bbox=dict(fc='white', ec='none', pad=1, alpha=0.8))
+        ax.text(0.0, 1.03, describe(pats[i]), transform=ax.transAxes, fontsize=12, va='bottom', ha='left')
         ax.set_ylim(0, 100); ax.set_xlim(0, 40); ax.set_xticks([0, 10, 20, 30, 40]); style(ax)
     for ax in axes[:, 0]: ax.set_ylabel('BIS', fontsize=12)
     for ax in axes[1]: ax.set_xlabel('Time (min)', fontsize=12)
