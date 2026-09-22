@@ -29,7 +29,8 @@ MAX_STEPS = int(EPISODE_MIN * 60 / DT_S)
 MAX_INFUSION = 1 / 3              # mg/kg/min  (20 mg/kg/h)
 MAX_BOLUS_RATE = 4.0              # mg/kg/min
 BOLUS_BUDGET = 2.5                # mg/kg
-INDUCTION_TIMEOUT_MIN = 3.0       # switch to maintenance after 3 min regardless
+MIN_BOLUS = 1.0                   # mg/kg; induction always gives at least this
+INDUCTION_TIMEOUT_MIN = 3.0       # after the minimum bolus, switch to maintenance by 3 min
 
 # BIS monitor model
 BIS_TARGET = 50.0
@@ -126,7 +127,9 @@ class AnesthesiaEnv(gym.Env):
         t = self.step_count * DT
 
         # phase switch is decided on the measured signal, as a clinician would
-        if not self.in_maintenance and (self.filtered <= BIS_INDUCTION_DONE or self.bolus_left <= 1e-9 or t >= INDUCTION_TIMEOUT_MIN):
+        given = BOLUS_BUDGET - self.bolus_left
+        if (not self.in_maintenance and given >= MIN_BOLUS - 1e-9
+                and (self.filtered <= BIS_INDUCTION_DONE or self.bolus_left <= 1e-9 or t >= INDUCTION_TIMEOUT_MIN)):
             self.in_maintenance = True
 
         bolus_mgkg = 0.0
@@ -139,7 +142,10 @@ class AnesthesiaEnv(gym.Env):
             self.patient.step(DT, u_prop, 0.0)
         else:
             smooth = 0.0
-            bolus_mgkg = min(float(a[1]) * MAX_BOLUS_RATE * DT, self.bolus_left)
+            requested = float(a[1]) * MAX_BOLUS_RATE * DT
+            if given < MIN_BOLUS:   # no skipping induction: the first 1 mg/kg always goes in
+                requested = max(requested, min(MAX_BOLUS_RATE * DT, MIN_BOLUS - given))
+            bolus_mgkg = min(requested, self.bolus_left)
             self.bolus_left -= bolus_mgkg
             self.patient.add_bolus(bolus_mgkg * self.weight)
             self.patient.step(DT, 0.0, 0.0)

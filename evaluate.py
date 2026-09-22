@@ -5,7 +5,8 @@ Every controller runs on the same test patients with the same monitor noise
 and the same surgical-stimulation timing (common random numbers), so
 differences come from the controller, not from luck.
 
-Metrics (maintenance phase, after induction):
+Metrics are computed over the same 5-40 min window for every controller,
+except bolus, time to BIS < 60 and whether BIS ever went below 20:
   time_in_target  % of time true BIS in [40, 60]
   MDPE            median performance error, bias (Varvel et al. 1992)
   MDAPE           median absolute performance error, inaccuracy
@@ -38,28 +39,30 @@ def run_episode(controller, patient, noise_seed):
     return trace
 
 
+WINDOW = (5.0, 40.0)   # min; every controller is scored over the same stretch
+
+
 def episode_metrics(trace):
     t = np.array([s['time_min'] for s in trace])
     bis = np.array([s['bis'] for s in trace])
-    maint = np.array([s['phase'] == 'maintenance' for s in trace])
-    ind_idx = int(np.argmax(maint)) if maint.any() else len(trace) - 1
-    b = bis[maint]
+    w = (t >= WINDOW[0]) & (t <= WINDOW[1])
+    b = bis[w]
     pe = (b - BIS_TARGET) / BIS_TARGET * 100
     mdpe = float(np.median(pe))
-    inf = np.array([s['infusion_mgkgh'] for s in trace])[maint]
+    maint = np.array([s['phase'] == 'maintenance' for s in trace])
+    below60 = np.flatnonzero(bis < 60)
     return {
         'time_in_target': float(np.mean((b >= 40) & (b <= 60)) * 100),
         'MDPE': mdpe,
         'MDAPE': float(np.median(np.abs(pe))),
         'wobble': float(np.median(np.abs(pe - mdpe))),
         'time_below_40': float(np.mean(b < 40) * 100),
-        'min_bis': float(bis.min()),
-        'induction_min': float(t[ind_idx]),
-        'propofol_mgkgh': float(inf.mean()),
-        # whole case, induction included
-        'case_below_40': float(np.mean(bis < 40) * 100),
-        'case_above_60': float(np.mean(bis[t > 1.0] > 60) * 100),   # ignore the first minute (awake at start)
+        'time_above_60': float(np.mean(b > 60) * 100),
+        'propofol_mgkgh': float(np.mean([s['infusion_mgkgh'] for s in trace][int(np.argmax(maint)):])),
+        'bolus_mgkg': float(sum(s['bolus_mgkg'] for s in trace)),
+        'time_to_60_min': float(t[below60[0]]) if len(below60) else float('nan'),
         'reached_below_20': float(bis.min() < 20) * 100,
+        'min_bis': float(bis.min()),
     }
 
 

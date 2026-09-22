@@ -22,13 +22,12 @@ from residual import ResidualPolicy
 
 from style import COLORS as C, TARGET as C_TARGET
 MUTED = '#6B7280'
-ROWS = [('time_in_target', 'Maintenance: time in 40-60 (%)'),
-        ('MDAPE', 'Maintenance: MDAPE (%)'),
-        ('MDPE', 'Maintenance: MDPE (%)'),
-        ('wobble', 'Maintenance: wobble (%)'),
-        ('propofol_mgkgh', 'Maintenance: propofol (mg/kg/h)'),
-        ('case_below_40', 'Whole case: time below 40 (%)'),
-        ('case_above_60', 'Whole case: time above 60 after 1 min (%)'),
+ROWS = [('time_in_target', 'Time in 40-60 (%)'),
+        ('time_below_40', 'Time below 40 (%)'),
+        ('time_above_60', 'Time above 60 (%)'),
+        ('MDAPE', 'MDAPE (%)'),
+        ('propofol_mgkgh', 'Maintenance propofol (mg/kg/h)'),
+        ('bolus_mgkg', 'Induction bolus (mg/kg)'),
         ('reached_below_20', 'Patients reaching BIS < 20 (%)')]
 
 
@@ -59,19 +58,26 @@ def main():
             cells.append(f'{v.mean():.1f}' if len(v) == 1 else f'{v.mean():.1f} ± {v.std():.1f}')
         lines.append(f'| {label} | ' + ' | '.join(cells) + ' |')
 
-    per_patient = {n: np.mean([[m['time_in_target'] for m in res[n][s][1]] for s in res[n]], axis=0) for n in names}
+    per_seed = {n: np.array([[m['time_in_target'] for m in res[n][s][1]] for s in res[n]]) for n in names}
+    per_patient = {n: per_seed[n].mean(axis=0) for n in names}
     paired = {}
     for n in names[1:]:
         d = per_patient[n] - per_patient['PID']
+        # hierarchical bootstrap: resample training seeds, then test patients
         rng = np.random.default_rng(0)
-        boot = [rng.choice(d, len(d)).mean() for _ in range(10_000)]
+        D = per_seed[n] - per_seed['PID'][0]
+        boot = []
+        for _ in range(10_000):
+            seeds = rng.integers(0, len(D), len(D))
+            pats = rng.integers(0, D.shape[1], D.shape[1])
+            boot.append(D[seeds][:, pats].mean())
         lo, hi = np.percentile(boot, [2.5, 97.5])
         paired[n] = {'better': int(np.sum(d > 1)), 'worse': int(np.sum(d < -1)), 'n': len(d),
                      'mean_diff': float(d.mean()), 'ci95': [float(lo), float(hi)]}
         lines.append('')
         lines.append(f'{n} vs PID, per patient (time in target, averaged over seeds): better on {paired[n]["better"]}, '
                      f'worse on {paired[n]["worse"]}, within 1 point on {len(d) - paired[n]["better"] - paired[n]["worse"]} of {len(d)}. '
-                     f'Mean difference {d.mean():+.1f} points (95% bootstrap CI {lo:+.1f} to {hi:+.1f}).')
+                     f'Mean difference {d.mean():+.1f} points (95% CI {lo:+.1f} to {hi:+.1f}, bootstrap over seeds and patients).')
 
     out = {n: {str(s): res[n][s][0] for s in res[n]} for n in names}
     out['paired_vs_pid'] = paired
@@ -106,9 +112,9 @@ def figure_paired(pp):
     ax.plot([20, 100], [20, 100], color='#9CA3AF', lw=1, ls='--')
     for n, mk in (('SAC', 'o'), ('PID + SAC', '^')):
         if n in pp:
-            ax.scatter(pp['PID'], pp[n], s=34, color=C[n], alpha=0.85, label=n, marker=mk, lw=0)
-    ax.set_xlabel('PID, maintenance time in 40-60 (%)', fontsize=11)
-    ax.set_ylabel('RL, maintenance time in 40-60 (%)', fontsize=11)
+            ax.scatter(pp['PID'], pp[n], s=38, facecolors='none', edgecolors=C[n], lw=1.3, label=n, marker=mk)
+    ax.set_xlabel('PID, time in 40-60 (%)', fontsize=12)
+    ax.set_ylabel('RL, time in 40-60 (%)', fontsize=12)
     ax.set_xticks([20, 40, 60, 80, 100]); ax.set_yticks([20, 40, 60, 80, 100])
     ax.set_xlim(18, 101); ax.set_ylim(18, 101); style(ax)
     ax.legend(frameon=False, loc='upper left', fontsize=11, handletextpad=0.2)
@@ -125,7 +131,8 @@ def figure_traces(models, idx=(0, 3, 8, 11, 19, 26)):
             if k == 0:   # stimulation timing is identical for every controller
                 stim = np.array([s['disturbance'] for s in tr]) > 0.5
                 ax.fill_between(t, 0, 100, where=stim, color='#9CA3AF', alpha=0.18, lw=0)
-            ax.plot(t, [s['bis'] for s in tr], color=C[lab], lw=1.4, label=lab)
+            ax.plot(t, [s['bis'] for s in tr], color=C[lab], lw=1.6 if lab == 'PID + SAC' else 1.4,
+                    ls='--' if lab == 'PID + SAC' else '-', label=lab)
         ax.axhspan(40, 60, color=C_TARGET, alpha=0.1, lw=0)
         ax.text(0.98, 0.97, describe(pats[i]), transform=ax.transAxes, fontsize=11, va='top', ha='right')
         ax.set_ylim(0, 100); ax.set_xlim(0, 40); ax.set_xticks([0, 10, 20, 30, 40]); style(ax)

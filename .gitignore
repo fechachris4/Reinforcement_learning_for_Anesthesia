@@ -60,3 +60,5 @@ media/test_final.png
 logs_residual*.txt
 video.log
 media/_*
+archive_v1/
+logs_*.txt
