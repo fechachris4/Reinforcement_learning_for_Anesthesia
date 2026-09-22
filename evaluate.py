@@ -1,19 +1,10 @@
 """
-Evaluation on held-out patients.
+Run controllers on the test patients. Every controller gets the same monitor
+noise and stimulation timing for a given patient (common random numbers).
 
-Every controller runs on the same test patients with the same monitor noise
-and the same surgical-stimulation timing (common random numbers), so
-differences come from the controller, not from luck.
-
-Metrics are computed over the same 5-40 min window for every controller,
-except bolus, time to BIS < 60 and whether BIS ever went below 20:
-  time_in_target  % of time true BIS in [40, 60]
-  MDPE            median performance error, bias (Varvel et al. 1992)
-  MDAPE           median absolute performance error, inaccuracy
-  wobble          median |PE - MDPE|, variability
-  time_below_40   % of time too deep
-  induction_min   time until measured BIS < 60
-  propofol        mean maintenance dose, mg/kg/h
+Metrics use true BIS over 5-40 min, except bolus_mgkg, time_to_60_min,
+reached_below_20 and min_bis, which cover the whole case.
+PE/MDPE/MDAPE/wobble as in Varvel et al. 1992.
 """
 
 import numpy as np

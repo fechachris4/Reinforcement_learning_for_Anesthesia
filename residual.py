@@ -10,8 +10,7 @@ corrections:
 Corrections carry a small quadratic cost, so the agent only departs from the
 PID where that pays off.
 
-With a = 0 the controller is exactly the tuned PID, so it starts from a
-clinically sensible policy rather than from random dosing.
+With a = 0 the controller is exactly the tuned PID.
 """
 
 import numpy as np

@@ -1,16 +1,12 @@
 """
-Train a Soft Actor-Critic agent on randomly sampled patients.
+Train SAC (or PID + SAC with --residual). Each episode is a new random patient.
+Validation uses the PID tuning patients; the test patients are only used in benchmark.py.
 
-Every training episode draws a new virtual patient, so the agent has to learn
-a policy that works across the population rather than memorising a few people.
-Learning curves are scored on a validation population (the PID tuning set);
-the test patients are only used in benchmark.py.
+    python train_sac.py --seed 0 --steps 500000 [--residual]
 
-    python train_sac.py --seed 0 --steps 150000 --n-envs 8
-
-Speed: with --n-envs N, N patients are simulated in parallel and the network
-is updated --grad-steps times per N environment steps. The simulator is
-cheap, so fewer, batched updates is what makes training fast.
+With --n-envs N, N patients are simulated in parallel and the network gets
+--grad-steps updates per N environment steps. The simulator is cheap, so
+fewer, batched updates are what make training fast.
 """
 
 import argparse, json, os
@@ -44,7 +40,7 @@ class ValidationCallback(BaseCallback):
                    'time_in_target': float(np.mean([m['time_in_target'] for m in ms])),
                    'MDAPE': float(np.mean([m['MDAPE'] for m in ms]))}
             self.log.append(row)
-            # keep the checkpoint that does best on validation patients (never the test set)
+            # keep the best checkpoint on validation
             if row['time_in_target'] > self.best:
                 self.best = row['time_in_target']
                 self.model.save(self.best_path)
@@ -58,16 +54,13 @@ def train(seed, steps, n_envs=1, grad_steps=1, out_dir='models', residual=False)
     torch.set_num_threads(1)
     os.makedirs(out_dir, exist_ok=True)
     os.makedirs('results', exist_ok=True)
-    # training patients: their own random stream, separate from tuning and test patients
     env = make_vec_env(ResidualEnv if residual else AnesthesiaEnv, n_envs=n_envs, seed=10_000 + 100 * seed)
     name = f"{'residual' if residual else 'sac'}_seed{seed}"
-    # residual agents start near zero correction with low exploration noise,
-    # so they begin from the PID's behaviour instead of from random dosing
+    # low exploration noise for the residual agent, otherwise early corrections swamp the PID
     extra = dict(ent_coef='auto_0.01', target_entropy=-4.0, learning_starts=2_000) if residual else dict(learning_starts=5_000)
     model = SAC('MlpPolicy', env, learning_rate=3e-4, buffer_size=200_000, batch_size=256,
                 gamma=0.995, tau=0.005, train_freq=1,
                 gradient_steps=grad_steps, seed=seed, verbose=0, **extra)
-    # validation: 20 patients from the tuning population (never the test set)
     cb = ValidationCallback(20_000, tuning_patients(20), f'results/learning_curve_{name}.json',
                             f'{out_dir}/{name}', residual)
     model.learn(total_timesteps=steps, callback=cb)
@@ -78,7 +71,7 @@ def train(seed, steps, n_envs=1, grad_steps=1, out_dir='models', residual=False)
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('--seed', type=int, default=0)
-    ap.add_argument('--steps', type=int, default=150_000)
+    ap.add_argument('--steps', type=int, default=500_000)
     ap.add_argument('--n-envs', type=int, default=8)
     ap.add_argument('--grad-steps', type=int, default=2)
     ap.add_argument('--out', default='models')

@@ -1,22 +1,17 @@
 """
-Virtual patient population.
+Virtual patients: sampled age, sex, height and weight, plus log-normal
+variability on the main PK/PD parameters. Training, tuning and test patients
+come from separate random streams, so the test set is never seen in training
+or tuning.
 
-Each patient has sampled covariates (age, sex, height, weight) plus log-normal
-inter-patient variability on the main PK/PD parameters. Training and test
-patients come from separate random streams, so the test set is never seen
-during training or controller tuning.
-
-The variances are half of the inter-individual variances reported by
-Eleveld et al. (2018): the full published spread includes patients who
-cannot be brought into range within the infusion limits used here. This is
-a simulation approximation, not a re-implementation of the full published
-random-effects model.
+Variances are half of Eleveld 2018's inter-individual variances. At full
+variance some patients can't be brought into range within the infusion limit.
 """
 
 import numpy as np
 
 TEST_SEED = 20_260_922       # held-out test patients
-TUNING_SEED = 7              # used only to tune the PID baseline
+TUNING_SEED = 7              # PID tuning and RL checkpoint selection
 
 # log-normal variances (omega^2) for multiplicative factors
 OMEGA2 = {

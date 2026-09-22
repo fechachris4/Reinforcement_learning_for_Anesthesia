@@ -1,14 +1,12 @@
 """
-PID baseline, built the way a clinical closed-loop system would be:
+PID baseline.
 
-- Induction: age-adjusted bolus (target 2.0 mg/kg under 55 years, 1.5 mg/kg from
-  55), given at the maximum bolus rate in 0.33 mg/kg steps until the target is
-  reached, so older patients actually get 1.67 mg/kg.
-- Maintenance: PI control on the filtered BIS, with a weight-scaled
-  feed-forward infusion and anti-windup.
+Induction: bolus of 2.0 mg/kg under 55 years, 1.5 from 55. It is given in
+0.33 mg/kg steps until the target is passed, so older patients actually get 1.67.
+Maintenance: baseline infusion u0 plus PI on the filtered BIS, with anti-windup.
+No D term: any derivative gain made it worse on the noisy, delayed BIS.
 
-Gains are tuned by grid search on a separate tuning population
-(patients.tuning_patients), never on the test patients. See tune_pid.py.
+Gains come from tune_pid.py.
 """
 
 import numpy as np

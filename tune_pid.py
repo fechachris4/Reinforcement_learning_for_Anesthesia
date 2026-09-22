@@ -1,4 +1,4 @@
-"""Grid-search PID gains on the tuning population only (never on test patients)."""
+"""Grid search for the PID gains on the tuning patients."""
 
 import itertools, json, os
 import numpy as np
