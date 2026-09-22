@@ -72,9 +72,8 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
     (mp,) = axb.plot([], [], '.', color=C_PID, ms=2.5, alpha=0.3)
     (ls,) = axb.plot([], [], color=C_SAC, lw=2.6)
     (lp,) = axb.plot([], [], color=C_PID, lw=2.2)
-    (dot,) = axb.plot([], [], '.', color='#6B7280', ms=6)
-    leg = axb.legend([ls, lp, dot], [rl_long, 'PID', 'measured BIS (20 s late)'], loc='upper right', bbox_to_anchor=(1.0, 0.99),
-                     frameon=False, fontsize=14, handlelength=1.5, prop={'family': 'DejaVu Sans Mono', 'size': 13})
+    leg = axb.legend([ls, lp], [rl_long, 'PID'], loc='upper right', bbox_to_anchor=(1.0, 0.99),
+                     frameon=False, fontsize=14, handlelength=1.5)
     for s in ('top', 'right'): axb.spines[s].set_visible(False)
     plt.setp(axb.get_xticklabels(), visible=False)
 
@@ -91,25 +90,26 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
         total = D['bol'].sum()
         if total >= 0.1:
             t0 = D['t'][np.argmax(D['bol'] > 0)]
-            mk = axi.annotate(f'bolus\n{total:.1f} mg/kg', xy=(t0, 0.5), xytext=(t0 + 0.25, 8 + dy),
-                              fontsize=11, color=color, va='bottom', linespacing=1.0,
+            mk = axi.annotate(f'bolus\n{total:.1f} mg/kg', xy=(t0, 0.5), xytext=(t0 + 0.2, 7 + dy),
+                              fontsize=14, color=color, va='bottom', linespacing=1.0,
                               arrowprops=dict(arrowstyle='->', color=color, lw=1.2))
             mk.set_visible(False)
             bolus_marks.append((t0, mk))
 
     def in_range(D, i):
-        bb = D['bis'][1:i + 1]
-        return f'{np.mean((bb >= 40) & (bb <= 60)) * 100:3.0f}%' if len(bb) else '  -'
+        # maintenance only, same definition as the results table
+        bb = D['bis'][:i + 1][D['phase'][:i + 1] == 'maintenance']
+        return f'{np.mean((bb >= 40) & (bb <= 60)) * 100:.0f}%' if len(bb) else '-'
 
     def update(i):
         m, s = divmod(int(round(S['t'][i] * 60)), 60)
-        clock.set_text(f'{m:02d}:{s:02d}')
+        clock.set_text(f't = {m:02d}:{s:02d}')
         for D, line, dots, inf in ((S, ls, ms, is_), (P, lp, mp, ip)):
             line.set_data(D['t'][:i + 1], D['bis'][:i + 1])
             dots.set_data(D['t'][:i + 1], D['meas'][:i + 1])
             inf.set_data(D['t'][:i + 1], D['inf'][:i + 1])
-        leg.get_texts()[0].set_text(f'{rl_long:<9}{in_range(S, i)} in 40-60')
-        leg.get_texts()[1].set_text(f'{"PID":<9}{in_range(P, i)} in 40-60')
+        leg.get_texts()[0].set_text(f'{rl_long}: {in_range(S, i)} in 40-60')
+        leg.get_texts()[1].set_text(f'PID: {in_range(P, i)} in 40-60')
         for t0, mk in bolus_marks:
             mk.set_visible(S['t'][i] >= t0)
         return []
