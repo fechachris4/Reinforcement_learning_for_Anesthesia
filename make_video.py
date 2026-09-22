@@ -68,8 +68,8 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
             axb.text(S['t'][a] + 0.3, 2, 'stimulation', fontsize=13, color='#4B5563', va='bottom')
     axb.set_xlim(0, EPISODE_MIN); axb.set_ylim(0, 100); axb.set_yticks([0, 20, 40, 60, 80, 100])
     axb.set_ylabel('BIS')
-    (ms,) = axb.plot([], [], '.', color=C_SAC, ms=2.5, alpha=0.3)
-    (mp,) = axb.plot([], [], '.', color=C_PID, ms=2.5, alpha=0.3)
+    (ms,) = axb.plot([], [], '.', color=C_SAC, ms=4, alpha=0.45)
+    (mp,) = axb.plot([], [], '.', color=C_PID, ms=4, alpha=0.45)
     (ls,) = axb.plot([], [], color=C_SAC, lw=2.6)
     (lp,) = axb.plot([], [], color=C_PID, lw=2.2)
     leg = axb.legend([ls, lp], [rl_long, 'PID'], loc='upper right', bbox_to_anchor=(1.0, 0.99),
@@ -84,21 +84,21 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
     (ip,) = axi.step([], [], color=C_PID, lw=1.6, where='post')
     for s in ('top', 'right'): axi.spines[s].set_visible(False)
 
-    # induction boluses don't fit on the infusion axis, so mark them instead
+    # induction boluses don't fit on the infusion axis: mark them with a triangle and label
     bolus_marks = []
-    for D, color, dy in ((S, C_SAC, 0), (P, C_PID, 5)):
+    for k, (D, color) in enumerate(((S, C_SAC), (P, C_PID))):
         total = D['bol'].sum()
         if total >= 0.1:
             t0 = D['t'][np.argmax(D['bol'] > 0)]
-            mk = axi.annotate(f'bolus\n{total:.1f} mg/kg', xy=(t0, 0.5), xytext=(t0 + 0.2, 7 + dy),
-                              fontsize=14, color=color, va='bottom', linespacing=1.0,
-                              arrowprops=dict(arrowstyle='->', color=color, lw=1.2))
-            mk.set_visible(False)
-            bolus_marks.append((t0, mk))
+            y = 17 - 7 * k
+            mk = axi.plot([t0 + 0.15], [y], marker='v', color=color, ms=9, ls='none')[0]
+            tx = axi.text(t0 + 1.8, y, f'bolus {total:.1f} mg/kg', color=color, fontsize=13, va='center')
+            for a in (mk, tx): a.set_visible(False)
+            bolus_marks += [(t0, mk), (t0, tx)]
 
     def in_range(D, i):
-        # maintenance only, same definition as the results table
-        bb = D['bis'][:i + 1][D['phase'][:i + 1] == 'maintenance']
+        # from 5 min on, same window as the results table
+        bb = D['bis'][:i + 1][D['t'][:i + 1] >= 5.0]
         return f'{np.mean((bb >= 40) & (bb <= 60)) * 100:.0f}%' if len(bb) else '-'
 
     def update(i):
@@ -108,8 +108,8 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
             line.set_data(D['t'][:i + 1], D['bis'][:i + 1])
             dots.set_data(D['t'][:i + 1], D['meas'][:i + 1])
             inf.set_data(D['t'][:i + 1], D['inf'][:i + 1])
-        leg.get_texts()[0].set_text(f'{rl_long}: {in_range(S, i)} in 40-60')
-        leg.get_texts()[1].set_text(f'PID: {in_range(P, i)} in 40-60')
+        leg.get_texts()[0].set_text(f'{rl_long}: {in_range(S, i)} in 40-60 since 5 min')
+        leg.get_texts()[1].set_text(f'PID: {in_range(P, i)} in 40-60 since 5 min')
         for t0, mk in bolus_marks:
             mk.set_visible(S['t'][i] >= t0)
         return []
