@@ -1,8 +1,9 @@
 """
 PID baseline, built the way a clinical closed-loop system would be:
 
-- Induction: age-adjusted bolus (2.0 mg/kg under 55 years, 1.5 mg/kg from 55),
-  given at the maximum bolus rate, then stop.
+- Induction: age-adjusted bolus (target 2.0 mg/kg under 55 years, 1.5 mg/kg from
+  55), given at the maximum bolus rate in 0.33 mg/kg steps until the target is
+  reached, so older patients actually get 1.67 mg/kg.
 - Maintenance: PI control on the filtered BIS, with a weight-scaled
   feed-forward infusion and anti-windup.
 

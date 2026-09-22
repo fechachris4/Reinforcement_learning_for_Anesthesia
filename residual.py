@@ -11,7 +11,7 @@ Corrections carry a small quadratic cost, so the agent only departs from the
 PID where that pays off.
 
 With a = 0 the controller is exactly the tuned PID, so it starts from a
-clinically sensible policy and can only learn to improve on it. It can never
+clinically sensible policy. The bolus can only be scaled, so it cannot
 "skip" induction the way pure SAC learned to.
 """
 
