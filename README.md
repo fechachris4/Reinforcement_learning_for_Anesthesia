@@ -6,15 +6,15 @@ This started as coursework in January 2026. The first version trained and tested
 
 ![SAC vs PID on an unseen patient](media/sac_vs_pid.gif)
 
-*A 72-year-old test patient, 40 min of surgery in 30 s. The PID's induction bolus drops her to BIS 9, and she stays below 15 for 7 min. SAC avoids that by leaving her awake for the first 3 min. On this patient SAC ends up ahead; over all 30 it doesn't. Legend: time in 40 to 60 so far, induction included. [MP4](media/sac_vs_pid.mp4)*
+*A 72-year-old test patient, 40 min in 30 s. The PID's bolus drops her to BIS 9; SAC gives no bolus and she stays awake for 3 min. Dots are the noisy, 20 s delayed BIS the controllers see. [MP4](media/sac_vs_pid.mp4)*
 
-It didn't. Over 30 unseen patients the PID kept BIS in the 40 to 60 range 81% of the time, pure SAC 71%, and SAC learning corrections on top of the PID 79%.
+This patient is one of the few where SAC comes out ahead. Over all 30 test patients the PID kept BIS in the 40 to 60 range 81% of the maintenance phase, pure SAC 71%, and SAC learning corrections on top of the PID 79%.
 
 ## Setup
 
 Patients are sampled with their own age, size and variation in how they distribute, clear and respond to propofol ([Eleveld 2018](#references) model). The controller sees only what a clinician would: a BIS reading that arrives 20 s late with noise, the pump history, age and weight. Surgical stimulation pushes BIS up at random times.
 
-The PID gives an age-adjusted bolus (2.0 mg/kg, or 1.67 mg/kg from age 55), then runs PI control on the infusion. Its gains were tuned on a separate set of patients. The 30 test patients were never used for training or tuning, and for each one every controller gets the same noise and stimulation. SAC results are the mean ± sd of three training seeds.
+Each case has two phases. Induction is a bolus; maintenance starts once the measured BIS drops below 60, the bolus budget is spent, or 3 min have passed, and from then on only the infusion can be changed. The PID gives an age-adjusted bolus (2.0 mg/kg, or 1.67 mg/kg from age 55), then runs PI control on the infusion. Its gains were tuned on a separate set of patients. The 30 test patients were never used for training or tuning, and for each one every controller gets the same noise and stimulation. SAC results are the mean ± sd of three training seeds.
 
 ## Results
 
@@ -22,30 +22,28 @@ The PID gives an age-adjusted bolus (2.0 mg/kg, or 1.67 mg/kg from age 55), then
 |---|---|---|---|
 | Maintenance: time in 40-60 (%) | 81.2 | 71.3 ± 1.8 | 78.5 ± 0.8 |
 | Maintenance: MDAPE (%) | 8.0 | 11.8 ± 1.1 | 8.4 ± 0.4 |
-| Maintenance: MDPE (%) | 1.9 | 0.5 ± 0.3 | 2.1 ± 0.1 |
-| Maintenance: wobble (%) | 6.1 | 7.4 ± 1.0 | 6.7 ± 0.2 |
 | Maintenance: propofol (mg/kg/h) | 7.1 | 6.8 ± 0.7 | 6.7 ± 0.1 |
 | Whole case: time below 40 (%) | 8.8 | 13.9 ± 2.2 | 11.8 ± 0.9 |
 | Whole case: time above 60, after the first minute (%) | 11.3 | 15.7 ± 2.9 | 9.9 ± 0.4 |
 | Patients that reach BIS < 20 (%) | 23 | 24 ± 10 | 29 ± 4 |
 
-MDPE, MDAPE and wobble are the bias, inaccuracy and variability measures from Varvel et al. (1992).
+MDAPE is the median absolute error from Varvel et al. (1992); bias and wobble are in [results/benchmark.md](results/benchmark.md). Per patient, SAC is 9.9 points worse than the PID on maintenance time in range (95% bootstrap CI 6.4 to 13.9) and PID + SAC 2.7 points worse (0.8 to 4.6).
 
 <img src="media/paired_patients.png" width="42%">
 
-*Time in range per test patient. Points above the diagonal are patients where the RL controller beat the PID: 3 of 30 for SAC, 9 of 30 for PID + SAC.*
+*One point per test patient, RL averaged over seeds. By more than 1 point, SAC beats the PID on 3 patients and loses on 26; PID + SAC beats it on 9 and loses on 18.*
 
 ![BIS traces on six test patients](media/test_traces.png)
 
-*Six test patients. Green band: 40 to 60. Grey: surgical stimulation. In the three patients over 70, SAC waits about 3 min before dosing. In the 34- and 39-year-old it settles below 40 for much of the case. The 20-year-old stays above 60 for the first 17 min whatever the controller does.*
+*Six test patients. Green: 40 to 60. Grey: surgical stimulation.*
 
 ## What went wrong
 
-**SAC found a loophole.** For older patients it skips the bolus, waits about 3 min, then runs the infusion at its maximum. In the video patient that softens the overshoot (lowest BIS 28 vs 9), but it leaves her awake as surgery starts, and across the test set SAC still takes about a quarter of patients below BIS 20, like the PID. Penalising time above 60 did not remove the loophole.
+**SAC found a loophole.** Induction ends after 3 min whether or not a bolus was given, so for the three patients over 70 above, SAC gives none, waits out the 3 min, then runs the infusion at its limit. That softens the overshoot (lowest BIS 28 vs 9 in the video) but leaves the patient awake for 3 min. It doesn't make SAC safer overall: about a quarter of test patients still go below BIS 20. In the 34- and 39-year-old it also settles below 40 for much of the case. Penalising time above 60 did not remove the loophole; closing it needs a rule in the environment, not a reward term.
 
-**Residual SAC made the PID worse.** It starts as the PID and only has to learn small corrections, but its corrections lowered its own training reward compared with applying none, and it spends more time below 40 than the PID (11.8% vs 8.8%). My explanation is credit assignment: a dose change reaches the measured BIS 30 to 60 s later, and the PID underneath partly cancels each correction.
+**PID + SAC didn't improve on the PID.** It starts as the PID and only has to learn small corrections, yet its validation score stayed at 70 to 78% for all 300k steps, below the 79% the PID gets alone on the same patients ([learning curves](results/)). It trades a little: less time above 60 and less propofol, more time below 40. My guess, not yet tested, is credit assignment: a dose change reaches the measured BIS 30 to 60 s later, and the PID partly cancels each correction.
 
-**Induction is the weak point for everyone.** Even with the age adjustment, the PID's bolus takes 7 of 30 test patients below BIS 20. The opposite also happens: the 20-year-old (bottom right) stays above 60 for 17 min under all three controllers.
+**Induction is the weak point for everyone.** Even with the age adjustment, the PID's bolus takes 7 of 30 test patients below BIS 20. The opposite also happens: the 20-year-old (bottom right) stays above 60 for 17 min under every controller. She is sampled as 40% less sensitive to propofol than average, and the PID's infusion sits at its 20 mg/kg/h limit for most of that time, so no controller here can go deeper.
 
 ## Next
 

@@ -9,6 +9,6 @@
 | Whole case: time above 60 after 1 min (%) | 11.3 | 15.7 ± 2.9 | 9.9 ± 0.4 |
 | Patients reaching BIS < 20 (%) | 23.3 | 24.4 ± 10.3 | 28.9 ± 4.2 |
 
-SAC vs PID, per patient (time in target, averaged over seeds): better on 3, worse on 26, within 1 point on 1 of 30.
+SAC vs PID, per patient (time in target, averaged over seeds): better on 3, worse on 26, within 1 point on 1 of 30. Mean difference -9.9 points (95% bootstrap CI -13.9 to -6.4).
 
-PID + SAC vs PID, per patient (time in target, averaged over seeds): better on 9, worse on 18, within 1 point on 3 of 30.
+PID + SAC vs PID, per patient (time in target, averaged over seeds): better on 9, worse on 18, within 1 point on 3 of 30. Mean difference -2.7 points (95% bootstrap CI -4.6 to -0.8).

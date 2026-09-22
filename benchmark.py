@@ -63,11 +63,15 @@ def main():
     paired = {}
     for n in names[1:]:
         d = per_patient[n] - per_patient['PID']
+        rng = np.random.default_rng(0)
+        boot = [rng.choice(d, len(d)).mean() for _ in range(10_000)]
+        lo, hi = np.percentile(boot, [2.5, 97.5])
         paired[n] = {'better': int(np.sum(d > 1)), 'worse': int(np.sum(d < -1)), 'n': len(d),
-                     'mean_diff': float(d.mean())}
+                     'mean_diff': float(d.mean()), 'ci95': [float(lo), float(hi)]}
         lines.append('')
         lines.append(f'{n} vs PID, per patient (time in target, averaged over seeds): better on {paired[n]["better"]}, '
-                     f'worse on {paired[n]["worse"]}, within 1 point on {len(d) - paired[n]["better"] - paired[n]["worse"]} of {len(d)}.')
+                     f'worse on {paired[n]["worse"]}, within 1 point on {len(d) - paired[n]["better"] - paired[n]["worse"]} of {len(d)}. '
+                     f'Mean difference {d.mean():+.1f} points (95% bootstrap CI {lo:+.1f} to {hi:+.1f}).')
 
     out = {n: {str(s): res[n][s][0] for s in res[n]} for n in names}
     out['paired_vs_pid'] = paired
@@ -103,8 +107,8 @@ def figure_paired(pp):
     for n, mk in (('SAC', 'o'), ('PID + SAC', '^')):
         if n in pp:
             ax.scatter(pp['PID'], pp[n], s=34, color=C[n], alpha=0.85, label=n, marker=mk, lw=0)
-    ax.set_xlabel('PID, time in 40-60 (%)', fontsize=12)
-    ax.set_ylabel('RL, time in 40-60 (%)', fontsize=12)
+    ax.set_xlabel('PID, maintenance time in 40-60 (%)', fontsize=11)
+    ax.set_ylabel('RL, maintenance time in 40-60 (%)', fontsize=11)
     ax.set_xticks([20, 40, 60, 80, 100]); ax.set_yticks([20, 40, 60, 80, 100])
     ax.set_xlim(18, 101); ax.set_ylim(18, 101); style(ax)
     ax.legend(frameon=False, loc='upper left', fontsize=11, handletextpad=0.2)
