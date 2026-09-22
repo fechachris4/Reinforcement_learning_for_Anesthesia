@@ -1,8 +1,8 @@
 """
 Benchmark three controllers on 30 held-out patients:
   PID          tuned clinical-style baseline
-  SAC          pure reinforcement learning (3 seeds)
-  PID + SAC    residual RL: SAC learns corrections on top of the PID (3 seeds)
+  SAC          pure reinforcement learning (5 seeds)
+  PID + SAC    residual RL: SAC learns corrections on top of the PID (5 seeds)
 
     python benchmark.py
 Writes results/benchmark.json, results/benchmark.md and figures in media/.
@@ -104,20 +104,21 @@ def main():
 
 def style(ax):
     for s in ('top', 'right'): ax.spines[s].set_visible(False)
-    ax.tick_params(labelsize=11)
+    ax.tick_params(labelsize=12)
 
 
 def figure_paired(pp):
-    fig, ax = plt.subplots(figsize=(4.4, 4.2), dpi=150)
-    ax.plot([20, 100], [20, 100], color='#9CA3AF', lw=1, ls='--')
+    fig, ax = plt.subplots(figsize=(4.6, 4.4), dpi=150)
+    ax.fill_between([15, 101], [14, 100], [16, 102], color='#9CA3AF', alpha=0.25, lw=0)   # within 1 point
+    ax.plot([15, 101], [15, 101], color='#6B7280', lw=0.8)
     for n, mk in (('SAC', 'o'), ('PID + SAC', '^')):
         if n in pp:
-            ax.scatter(pp['PID'], pp[n], s=38, facecolors='none', edgecolors=C[n], lw=1.3, label=n, marker=mk)
-    ax.set_xlabel('PID, time in 40-60 (%)', fontsize=12)
-    ax.set_ylabel('RL, time in 40-60 (%)', fontsize=12)
+            ax.scatter(pp['PID'], pp[n], s=44, facecolors='none', edgecolors=C[n], lw=1.4, label=n, marker=mk)
+    ax.set_xlabel('PID, time in 40-60 (%)', fontsize=13)
+    ax.set_ylabel('RL, time in 40-60 (%)', fontsize=13)
     ax.set_xticks([20, 40, 60, 80, 100]); ax.set_yticks([20, 40, 60, 80, 100])
     ax.set_xlim(18, 101); ax.set_ylim(18, 101); style(ax)
-    ax.legend(frameon=False, loc='upper left', fontsize=11, handletextpad=0.2)
+    ax.legend(frameon=False, loc='upper left', fontsize=13, handletextpad=0.2)
     fig.tight_layout(); fig.savefig('media/paired_patients.png'); plt.close(fig)
 
 
