@@ -6,9 +6,9 @@ This started as coursework in January 2026. That version trained and tested on t
 
 ![PID + SAC vs PID on an unseen patient](media/sac_vs_pid.gif)
 
-*A 72-year-old test patient, 40 min in 30 s. The PID's standard bolus takes her to BIS 9. PID + SAC gives her 1 mg/kg instead and she bottoms out at 20. Dots are the noisy, 20 s delayed BIS the controllers see. [MP4](media/sac_vs_pid.mp4)*
+*A 72-year-old test patient, 40 min in 30 s. The PID's standard bolus takes her to BIS 9; PID + SAC gives her 1 mg/kg and she bottoms out at 20. She is its biggest win of the 30; overall it ties. Dots are the noisy, 20 s delayed BIS the controllers see. [MP4](media/sac_vs_pid.mp4)*
 
-Short answer: not overall. Across 30 test patients, SAC learning corrections on top of the PID ties with it (85% of the time in the 40 to 60 range for both), and pure SAC is clearly worse (70%). The interesting part is what each one learned.
+Short answer: not overall. Across 30 test patients, SAC learning corrections on top of the PID ties with it (85% of the time in the 40 to 60 range for both, with fewer deep overdoses), and pure SAC is clearly worse (70%). The interesting part is what each one learned.
 
 ## Setup
 
@@ -22,34 +22,34 @@ The 30 test patients were never used for training or tuning, each controller get
 
 | | PID | SAC | PID + SAC |
 |---|---|---|---|
-| Time in 40-60 (%) | 84.9 | 70.0 ± 9.0 | 85.0 ± 0.8 |
-| Time below 40 (%) | 5.5 | 19.5 ± 7.6 | 6.0 ± 1.7 |
-| Time above 60 (%) | 9.6 | 10.5 ± 2.6 | 9.0 ± 1.0 |
-| MDAPE (%) | 7.4 | 14.5 ± 5.5 | 7.3 ± 0.3 |
-| Bolus (mg/kg) | 1.9 | 2.5 ± 0.0 | 2.1 ± 0.2 |
-| Patients reaching BIS < 20 (%) | 23 | 38 ± 3 | 26 ± 7 |
+| Time in 40-60 (%) | 84.9 | 70.0 ± 9.0 | 85.3 ± 0.8 |
+| Time below 40 (%) | 5.5 | 19.5 ± 7.6 | 5.0 ± 1.3 |
+| Time above 60 (%) | 9.6 | 10.5 ± 2.6 | 9.7 ± 1.2 |
+| MDAPE (%) | 7.4 | 14.5 ± 5.5 | 7.5 ± 0.2 |
+| Bolus (mg/kg) | 1.9 | 2.5 ± 0.0 | 1.9 ± 0.2 |
+| Patients reaching BIS < 20 (%) | 23 | 38 ± 3 | 18 ± 5 |
 
-Compared patient by patient with the PID, PID + SAC is +0.1 points on time in range (95% CI −1.6 to +1.9, bootstrap over seeds and patients) and SAC is −14.9 (−26.0 to −6.3). MDAPE is the median absolute error from Varvel et al. (1992); bias and wobble are in [results/benchmark.md](results/benchmark.md).
+Compared patient by patient with the PID, PID + SAC is +0.4 points on time in range (95% CI −1.0 to +2.0, bootstrap over seeds and patients) and SAC is −14.9 (−26.0 to −6.3). MDAPE is the median absolute error from Varvel et al. (1992); bias and wobble are in [results/benchmark.md](results/benchmark.md).
 
-<img src="media/paired_patients.png" width="42%">
+<img src="media/paired_patients.png" width="55%">
 
-*One point per test patient, RL averaged over seeds. By more than 1 point, PID + SAC beats the PID on 11 patients and loses on 14; SAC beats it on 2 and loses on 25.*
+*One point per test patient, RL averaged over seeds. The grey band is ±1 point. Outside it, PID + SAC beats the PID on 8 patients and loses on 12; SAC beats it on 2 and loses on 25.*
 
 ![BIS traces on six test patients](media/test_traces.png)
 
-*Six test patients. Green: 40 to 60. Grey: surgical stimulation.*
+*True (noise-free) BIS for six test patients spanning the age range, using the seed of each RL controller that scored best on validation. Green: 40 to 60. Grey: surgical stimulation.*
 
 ## What each controller learned
 
 **SAC found a loophole, then over-corrected.** In the first version induction could end on a 3 min timeout with no bolus, and SAC learned to give none: patients stayed awake for 3 min, then got the infusion at its limit. Penalising time above 60 didn't stop it, so I made a 1 mg/kg minimum bolus a rule of the environment. Now SAC gives the full 2.5 mg/kg budget every time, and 38% of patients go below BIS 20.
 
-**PID + SAC learned to dose by age, but only breaks even.** For the 8 test patients aged 55 and over it cut the bolus (1.51 vs 1.67 mg/kg) and their time in range rose from 81% to 83%. For younger patients it raised the bolus (2.33 vs 2.00 mg/kg), which cost them under a point. Its infusion corrections didn't add anything measurable. My guess, not yet tested, is credit assignment: a dose change reaches the measured BIS 30 to 60 s later, and the PID partly cancels each correction.
+**PID + SAC learned to dose by age, and cut the deep overdoses.** For the 8 test patients aged 55 and over it gave a smaller bolus than the PID (1.47 vs 1.67 mg/kg), and their time in range went from 81% to 84%; younger patients got slightly more (2.10 vs 2.00). Only 18% of patients went below BIS 20, against 23% for the PID. With 8 older patients that is a hint, not a result, and time in range overall didn't move. Its infusion corrections added nothing measurable. My guess, not yet tested, is credit assignment: a dose change reaches the measured BIS 30 to 60 s later, and the PID partly cancels each correction.
 
 **Induction is the weak point for everyone.** Even the PID takes 7 of 30 patients below BIS 20. The 20-year-old (bottom right) is the opposite case: she stays above 60 for 17 min under every controller. She is sampled as 40% less sensitive to propofol than average, and the infusion sits at its 20 mg/kg/h limit for most of that time.
 
 ## Next
 
-Train PID + SAC for longer: its validation score was still creeping up at 300k steps. A policy with memory (recurrent, or a stacked history of BIS and doses) to handle the delay. MPC on the patient model as a stronger baseline. A bolus sized from age and weight, since that is where PID + SAC found its gain.
+Test the age effect on more older patients. A policy with memory (recurrent, or a stacked history of BIS and doses) to handle the delay. MPC on the patient model as a stronger baseline. A bolus sized from age and weight, since that is where PID + SAC found its gain.
 
 ## Code
 
@@ -66,12 +66,12 @@ Train PID + SAC for longer: its validation score was still creeping up at 300k s
 pip install -r requirements.txt
 python tune_pid.py
 python train_sac.py --seed 0 --steps 500000              # seeds 0-4
-python train_sac.py --seed 0 --steps 300000 --residual   # seeds 0-4
+python train_sac.py --seed 0 --steps 500000 --residual   # seeds 0-4
 python benchmark.py
 python make_video.py --patient 0 --model models/residual_seed4.zip
 ```
 
-All ten training runs together take about 13 min on an Apple M5 laptop, because the patient model steps in closed form and 8 patients are simulated in parallel per run.
+Five seeds of one controller take about 10 min on an Apple M5 laptop, all running at once,, because the patient model steps in closed form and 8 patients are simulated in parallel per run.
 
 ## Limitations
 
