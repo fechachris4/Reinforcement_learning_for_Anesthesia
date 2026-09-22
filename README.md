@@ -1,19 +1,21 @@
 # Teaching an AI to dose anaesthesia
 
-During surgery, an anaesthetist adjusts the propofol dose to keep the patient at the right depth of unconsciousness. Too little and they may wake up; too much and blood pressure falls and recovery is slow. This project trains reinforcement learning agents (Soft Actor-Critic) to do that job and tests them against a clinical-style PID controller on **30 simulated patients they have never seen.**
+During surgery an anaesthetist keeps adjusting the propofol dose so the patient stays at the right depth: too little and they can wake up, too much and blood pressure drops. I wanted to see whether a reinforcement learning agent (Soft Actor-Critic) could learn that job, and whether it could beat a well-tuned PID controller on patients it had never seen.
+
+This started as coursework for the RL module of my MSc at Imperial in January 2026. I came back to it in September, after my thesis, and rebuilt the evaluation because the original one was far too easy (see [How this evolved](#how-this-evolved)).
 
 ![SAC vs PID on an unseen patient](media/sac_vs_pid.gif)
 
-*40 minutes of surgery in 30 seconds, on a 72-year-old patient neither controller has seen. Both face the same monitor noise and the same surgical stimulation. It shows the two failure modes this project uncovered: the PID's standard induction dose sends this older patient far too deep (BIS below 10), while the RL agent avoids that by leaving her awake for three minutes. [Full-resolution video](media/sac_vs_pid.mp4).*
+*40 minutes of surgery sped up to 30 seconds. A 72-year-old patient from the test set, same monitor noise and same surgical stimulation for both controllers. The PID's standard induction dose puts her far too deep (BIS under 10). SAC avoids that, but only by leaving her awake for the first three minutes. [MP4 version](media/sac_vs_pid.mp4).*
 
-**Result:** the tuned PID kept BIS in the target range **81%** of the time. Pure SAC reached **71%** and learned an unsafe shortcut. SAC learning corrections on top of the PID reached **79%**. Neither reinforcement learning variant beat the classical baseline, and the reasons why are the most useful part of the project.
+**Short answer: no.** On 30 unseen patients the tuned PID kept BIS in range 81% of the time. Pure SAC got 71% and learned a shortcut no clinician would accept. SAC learning corrections on top of the PID got 79%. Why they lost turned out to be more interesting than the scores.
 
 ## Why this is hard
 
-- **Every patient is different.** The same dose can put one person at the right depth and another far too deep. Patients are sampled with individual variation in how they distribute, clear and respond to the drug.
-- **The monitor is noisy and late.** The depth signal (BIS, 0 = no brain activity, ~93 = awake) arrives 20 seconds late with random noise, as real monitors do.
-- **Surgery wakes the patient up.** Incision and other stimulation push BIS up at unpredictable times, and the controller has to respond.
-- **The controller only sees what a clinician sees:** the BIS reading, the pump history, age and weight. It never sees drug levels inside the body.
+- Patients respond very differently to the same dose. Each simulated patient gets their own variation in how the drug spreads, clears and acts.
+- The depth signal (BIS: about 93 awake, 40 to 60 is the surgical target) arrives 20 s late and noisy, like a real monitor.
+- Surgical stimulation pushes BIS back up at random moments.
+- The controller only gets what a clinician would have: the BIS reading, the pump history, age and weight. No drug concentrations.
 
 ## Results on 30 unseen patients
 
@@ -46,30 +48,37 @@ Per patient: pure SAC beat the PID on 3 of 30 patients; PID + SAC beat it on 9 o
 
 *PID vs PID + SAC on six test patients.*
 
-## What the agents learned, and why they lost
+## Why the RL agents lost
 
-**Pure SAC found a shortcut.** In older patients it learned to skip the induction bolus and hold off for about three minutes, then run the infusion at maximum. It learned this because the PID's fixed bolus overdoses older patients (the video shows BIS below 10 for ten minutes), and waiting avoids that. But a patient left awake at the start of surgery is a failure a clinician would never accept. Adding a penalty for staying too light did not remove the shortcut. The takeaway: an agent optimises exactly the reward you write, including its loopholes.
+**Pure SAC found a shortcut.** In older patients it learned to skip the induction bolus and hold off for about three minutes, then run the infusion at maximum. It learned this because the PID's fixed bolus overdoses older patients (the video shows BIS below 10 for ten minutes), and waiting avoids that. But a patient left awake at the start of surgery is a failure a clinician would never accept. Adding a penalty for staying too light did not get rid of it. The agent optimises the reward I wrote, loopholes included.
 
-**Residual SAC could not beat the controller it started from.** It begins as the PID and only has to learn small improvements. On the validation patients its corrections made its own reward worse (211 against 285 for no correction at all), so this is a learning failure, not a reward-design problem. The likely cause is credit assignment: a dose change only shows up in the measured BIS 30 to 60 seconds later (drug equilibration plus the 20 s monitor delay), and the PID underneath partly cancels every correction. The agent cannot see clearly what its own actions did.
+**Residual SAC couldn't even beat the controller it started from.** It starts as the PID and only has to learn small corrections, yet on the validation patients its corrections made its own reward worse (211 vs 285 with no correction). So it's not a reward problem, the learning itself fails. My best guess is credit assignment: a dose change only shows up in the measured BIS 30 to 60 s later (drug equilibration plus the monitor delay), and the PID underneath partly cancels each correction, so the agent can't tell what its own actions did.
 
-**Where RL did help.** PID + SAC induced faster (1.2 vs 2.0 min), used slightly less propofol, and beat the PID on 9 of 30 patients. Pure SAC had the lowest bias of the three.
+**Where RL did help:** PID + SAC induced faster (1.2 vs 2.0 min), used slightly less propofol, and beat the PID on 9 of 30 patients. Pure SAC had the lowest bias of the three.
 
-**Training was unstable.** Pure SAC's learning curves differ a lot between seeds and collapse and recover mid-training (learning curves above), which is why every result here uses three seeds and a best-on-validation checkpoint.
+Training was also unstable: pure SAC's curves differ a lot between seeds and collapse and recover mid-run, which is why everything is reported over three seeds with a best-on-validation checkpoint.
 
-## What would come next
+## What I'd try next
 
-- **Handle the delay explicitly:** a recurrent policy or a stacked history of BIS and doses, so the agent can connect actions to effects that arrive a minute later.
-- **Start from the PID's behaviour:** pre-train the policy to imitate the PID, then fine-tune with RL, instead of learning from random dosing.
-- **A stronger classical baseline:** model predictive control using the patient model, which is what RL would really need to beat.
-- **Individualised induction:** the clearest weakness of both the PID and SAC is the first five minutes, where a weight- and age-adjusted induction strategy has the most to gain.
+- Give the agent memory (a recurrent policy, or a stacked history of BIS and doses) so it can link a dose to an effect that shows up a minute later.
+- Pre-train the policy to copy the PID, then fine-tune with RL, instead of starting from random dosing.
+- Compare against MPC using the patient model. That's the baseline RL would really need to beat.
+- Fix induction. Both the PID and SAC are worst in the first five minutes, and an age- and weight-adjusted induction dose probably gains more than anything else here.
 
-## How the evaluation is kept fair
+## How this evolved
 
-- **Held-out patients.** Test patients come from a separate random stream and are never used for training or tuning.
-- **A properly tuned baseline.** The PID gains are grid-searched on a separate tuning population, and it uses clinical-style dosing: an age-adjusted induction bolus, then PI control with anti-windup.
-- **Common random numbers.** For each test patient, both controllers get identical monitor noise and stimulation timing, so differences come from the controller, not from luck.
-- **Several training seeds.** SAC results are reported as mean ± spread across independent training runs.
-- **Standard clinical metrics** from Varvel et al. (1992): bias (MDPE), inaccuracy (MDAPE), wobble, plus time in the 40–60 target band.
+- **Jan 2026, coursework version.** SAC agent, 5 fixed patients, perfect BIS signal. It looked good, but it trained and tested on the same five patients and the agent could see the drug concentration inside the body, which no real controller can.
+- **Sep 2026, rebuild.** Sampled patient population with a held-out test set, delayed noisy BIS, surgical stimulation, and a PID tuned on its own patients so the comparison is fair. Replaced the ODE solver with an exact matrix-exponential step, which made training fast enough to run three seeds on a laptop.
+- **First results.** SAC scored close to PID, but the video showed it skipping induction entirely. Changed the reward to penalise staying too light.
+- **Residual RL.** Tried PID + SAC corrections to get the best of both. It didn't beat PID, which is where the credit-assignment explanation above comes from.
+
+## Keeping the comparison fair
+
+- Test patients come from a separate random stream and are never used for training or tuning.
+- PID gains are grid-searched on their own tuning patients. It doses like a clinical system: age-adjusted induction bolus, then PI control with anti-windup.
+- Every controller sees the same monitor noise and stimulation timing for a given test patient, so differences come from the controller, not luck.
+- SAC results are mean ± spread over three training seeds.
+- Metrics follow Varvel et al. (1992): bias (MDPE), inaccuracy (MDAPE), wobble, plus time in the 40 to 60 band.
 
 ## How it works
 
@@ -111,4 +120,4 @@ python make_video.py --patient 0 --model models/sac_seed2.zip
 - Haarnoja, T. et al. (2018). Soft Actor-Critic: Off-policy maximum entropy deep reinforcement learning with a stochastic actor. *ICML*.
 - Varvel, J.R. et al. (1992). Measuring the predictive performance of computer-controlled infusion pumps. *J Pharmacokinet Biopharm*, 20(1), 63–94.
 
-*Started as coursework for BIOE70077 Reinforcement Learning for Bioengineers, Imperial College London, then extended with held-out evaluation, realistic monitoring, a tuned baseline and residual RL.*
+*Originally coursework for BIOE70077 Reinforcement Learning for Bioengineers, Imperial College London.*
