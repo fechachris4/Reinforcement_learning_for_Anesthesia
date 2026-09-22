@@ -139,14 +139,13 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
         for i in list(range(0, n, stride_mp4)) + [n - 1] * 32:
             update(i); w.grab_frame()
     if out_gif:
-        fig.set_size_inches(9.6, 5.4)
+        # same layout as the MP4, just a lower resolution, so nothing gets cropped
         w = PillowWriter(fps=10)
-        with w.saving(fig, out_gif, dpi=80):
+        with w.saving(fig, out_gif, dpi=64):
             for i in list(range(0, n, stride_gif)) + [n - 1] * 15:
                 update(i); w.grab_frame()
     # poster frame
     update(n - 1)
-    fig.set_size_inches(12.8, 7.2)
     fig.savefig(out_mp4.replace('.mp4', '_final.png'), dpi=100)
     plt.close(fig)
 
