@@ -13,6 +13,7 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 from stable_baselines3 import SAC
 
 from evaluate import evaluate, run_episode, TEST_NOISE_OFFSET
@@ -55,7 +56,7 @@ def main():
         cells = []
         for n in names:
             v = np.array([res[n][s][0][k] for s in res[n]])
-            cells.append(f'{v.mean():.1f}' if len(v) == 1 else f'{v.mean():.1f} ± {v.std():.1f}')
+            cells.append(f'{v.mean():.1f}' if len(v) == 1 else f'{v.mean():.1f} ± {v.std(ddof=1):.1f}')
         lines.append(f'| {label} | ' + ' | '.join(cells) + ' |')
 
     per_seed = {n: np.array([[m['time_in_target'] for m in res[n][s][1]] for s in res[n]]) for n in names}
@@ -63,21 +64,22 @@ def main():
     paired = {}
     for n in names[1:]:
         d = per_patient[n] - per_patient['PID']
-        # hierarchical bootstrap: resample training seeds, then test patients
-        rng = np.random.default_rng(0)
-        D = per_seed[n] - per_seed['PID'][0]
-        boot = []
-        for _ in range(10_000):
-            seeds = rng.integers(0, len(D), len(D))
-            pats = rng.integers(0, D.shape[1], D.shape[1])
-            boot.append(D[seeds][:, pats].mean())
-        lo, hi = np.percentile(boot, [2.5, 97.5])
+        lo, hi = bootstrap_ci(res, n, 'time_in_target')
         paired[n] = {'better': int(np.sum(d > 1)), 'worse': int(np.sum(d < -1)), 'n': len(d),
-                     'mean_diff': float(d.mean()), 'ci95': [float(lo), float(hi)]}
+                     'mean_diff': float(d.mean()), 'ci95': [lo, hi]}
         lines.append('')
         lines.append(f'{n} vs PID, per patient (time in target, averaged over seeds): better on {paired[n]["better"]}, '
-                     f'worse on {paired[n]["worse"]}, within 1 point on {len(d) - paired[n]["better"] - paired[n]["worse"]} of {len(d)}. '
-                     f'Mean difference {d.mean():+.1f} points (95% CI {lo:+.1f} to {hi:+.1f}, bootstrap over seeds and patients).')
+                     f'worse on {paired[n]["worse"]}, within 1 point on {len(d) - paired[n]["better"] - paired[n]["worse"]} of {len(d)}.')
+
+    # difference from the PID for every row, 95% CI from a bootstrap over seeds and patients
+    lines += ['', '| Difference from PID | ' + ' | '.join(names[1:]) + ' |', '|' + '---|' * len(names)]
+    for k, label in ROWS:
+        cells = []
+        for n in names[1:]:
+            v = np.array([res[n][s][0][k] for s in res[n]]).mean() - res['PID'][0][0][k]
+            lo, hi = bootstrap_ci(res, n, k)
+            cells.append(f'{v:+.1f} ({lo:+.1f} to {hi:+.1f})')
+        lines.append(f'| {label} | ' + ' | '.join(cells) + ' |')
 
     out = {n: {str(s): res[n][s][0] for s in res[n]} for n in names}
     out['paired_vs_pid'] = paired
@@ -102,29 +104,39 @@ def main():
                        'PID + SAC': load('residual', f'models/residual_seed{best["residual"]}.zip')})
 
 
+def bootstrap_ci(res, n, key, reps=10_000):
+    """Hierarchical bootstrap of the mean difference from the PID: resample training seeds, then test patients."""
+    D = np.array([[m[key] for m in res[n][s][1]] for s in res[n]]) - np.array([m[key] for m in res['PID'][0][1]])
+    rng = np.random.default_rng(0)
+    boot = [D[rng.integers(0, len(D), len(D))][:, rng.integers(0, D.shape[1], D.shape[1])].mean() for _ in range(reps)]
+    lo, hi = np.percentile(boot, [2.5, 97.5])
+    return float(lo), float(hi)
+
+
 def style(ax):
     for s in ('top', 'right'): ax.spines[s].set_visible(False)
     ax.tick_params(labelsize=12)
 
 
 def figure_paired(pp):
-    fig, ax = plt.subplots(figsize=(5.2, 3.8), dpi=150)
-    ax.axhspan(-1, 1, color='#9CA3AF', alpha=0.45, lw=0)
-    ax.axhline(0, color='#374151', lw=0.8)
-    for n, mk in (('SAC', 'o'), ('PID + SAC', '^')):
-        if n in pp:
-            ax.scatter(pp['PID'], pp[n] - pp['PID'], s=44, facecolors='none', edgecolors=C[n], lw=1.4,
-                       label=n, marker=mk)
-    ax.set_xlabel('PID, time in 40-60 (%)', fontsize=13)
-    ax.set_ylabel('Difference from PID (points)', fontsize=13)
-    ax.set_xlim(45, 102); style(ax)
-    ax.legend(frameon=False, loc='lower left', fontsize=12, handletextpad=0.2)
+    rl = [n for n in ('SAC', 'PID + SAC') if n in pp]
+    fig, axes = plt.subplots(1, len(rl), figsize=(4.2 * len(rl), 3.8), dpi=150, sharex=True)
+    for ax, n in zip(np.atleast_1d(axes), rl):
+        d = pp[n] - pp['PID']
+        for y in (-1, 1): ax.axhline(y, color='#9CA3AF', lw=1, ls='--')
+        ax.axhline(0, color='#374151', lw=0.8)
+        ax.scatter(pp['PID'], d, s=40, facecolors='none', edgecolors=C[n], lw=1.4)
+        ax.text(0.0, 1.03, n, transform=ax.transAxes, color=C[n], fontsize=13, va='bottom')
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True, steps=[1, 2, 5, 10]))
+        ax.set_xlabel('PID time in 40-60 (%)', fontsize=12)
+        ax.set_xlim(45, 102); style(ax)
+    np.atleast_1d(axes)[0].set_ylabel('Δ time in 40-60 (points)', fontsize=12)
     fig.tight_layout(); fig.savefig('media/paired_patients.png'); plt.close(fig)
 
 
 def figure_traces(models, idx=(0, 3, 8, 11, 19, 26)):
     pats = test_patients(30)
-    fig, axes = plt.subplots(2, 3, figsize=(12, 5.6), dpi=120, sharex=True, sharey=True)
+    fig, axes = plt.subplots(2, 3, figsize=(10, 5.2), dpi=130, sharex=True, sharey=True)
     for ax, i in zip(axes.flat, idx):
         for k, (lab, ctrl) in enumerate(models.items()):
             tr = run_episode(ctrl, pats[i], TEST_NOISE_OFFSET + i)
@@ -133,8 +145,8 @@ def figure_traces(models, idx=(0, 3, 8, 11, 19, 26)):
                 stim = np.array([s['disturbance'] for s in tr]) > 0.5
                 ax.fill_between(t, 0, 100, where=stim, color='#9CA3AF', alpha=0.18, lw=0)
             ax.plot(t, [s['bis'] for s in tr], color=C[lab], lw=1.6, label=lab)
-        ax.axhspan(40, 60, color=C_TARGET, alpha=0.1, lw=0)
-        ax.text(0.0, 1.03, describe(pats[i]), transform=ax.transAxes, fontsize=13, va='bottom', ha='left')
+        ax.axhspan(40, 60, color=C_TARGET, alpha=0.18, lw=0)
+        ax.text(0.0, 1.03, describe(pats[i]), transform=ax.transAxes, fontsize=12, va='bottom', ha='left')
         ax.set_ylim(0, 100); ax.set_xlim(0, 40); ax.set_xticks([0, 10, 20, 30, 40]); style(ax)
     for ax in axes[:, 0]: ax.set_ylabel('BIS', fontsize=12)
     for ax in axes[1]: ax.set_xlabel('Time (min)', fontsize=12)
