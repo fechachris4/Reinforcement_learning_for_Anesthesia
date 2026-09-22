@@ -34,7 +34,8 @@ def load_controller(path):
 def arrays(trace):
     g = lambda k: np.array([s[k] for s in trace])
     return {'t': g('time_min'), 'bis': g('bis'), 'meas': g('bis_measured'),
-            'inf': g('infusion_mgkgh'), 'dist': g('disturbance'), 'phase': g('phase')}
+            'inf': g('infusion_mgkgh'), 'dist': g('disturbance'), 'phase': g('phase'),
+            'bol': g('bolus_mgkg')}
 
 
 def zone(b):
@@ -51,12 +52,11 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
                          'axes.labelcolor': INK, 'xtick.color': INK, 'ytick.color': INK})
 
     fig = plt.figure(figsize=(12.8, 7.2), dpi=100, facecolor='white')
-    gs = fig.add_gridspec(2, 1, height_ratios=[3, 1.2], left=0.08, right=0.97, top=0.88, bottom=0.10, hspace=0.12)
+    gs = fig.add_gridspec(2, 1, height_ratios=[3, 1.2], left=0.08, right=0.97, top=0.92, bottom=0.10, hspace=0.12)
     axb = fig.add_subplot(gs[0])
     axi = fig.add_subplot(gs[1], sharex=axb)
 
-    fig.text(0.08, 0.955, f'Test patient: {describe(patient)}', fontsize=15, color=INK, va='center')
-    clock = fig.text(0.97, 0.955, '', fontsize=15, color=INK, ha='right', va='center', family='DejaVu Sans Mono')
+    clock = fig.text(0.97, 0.965, '', fontsize=15, color=INK, ha='right', va='center', family='DejaVu Sans Mono')
 
     # BIS panel
     axb.axhspan(40, 60, color=C_TARGET, alpha=0.12, lw=0)
@@ -72,7 +72,8 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
     (mp,) = axb.plot([], [], '.', color=C_PID, ms=2.5, alpha=0.3)
     (ls,) = axb.plot([], [], color=C_SAC, lw=2.6)
     (lp,) = axb.plot([], [], color=C_PID, lw=2.2)
-    leg = axb.legend([ls, lp], [rl_long, 'PID'], loc='upper right', bbox_to_anchor=(1.0, 0.99),
+    (dot,) = axb.plot([], [], '.', color='#6B7280', ms=6)
+    leg = axb.legend([ls, lp, dot], [rl_long, 'PID', 'measured BIS (20 s late)'], loc='upper right', bbox_to_anchor=(1.0, 0.99),
                      frameon=False, fontsize=14, handlelength=1.5, prop={'family': 'DejaVu Sans Mono', 'size': 13})
     for s in ('top', 'right'): axb.spines[s].set_visible(False)
     plt.setp(axb.get_xticklabels(), visible=False)
@@ -83,6 +84,18 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
     (is_,) = axi.step([], [], color=C_SAC, lw=1.8, where='post')
     (ip,) = axi.step([], [], color=C_PID, lw=1.6, where='post')
     for s in ('top', 'right'): axi.spines[s].set_visible(False)
+
+    # induction boluses don't fit on the infusion axis, so mark them instead
+    bolus_marks = []
+    for D, color, dy in ((S, C_SAC, 0), (P, C_PID, 5)):
+        total = D['bol'].sum()
+        if total >= 0.1:
+            t0 = D['t'][np.argmax(D['bol'] > 0)]
+            mk = axi.annotate(f'bolus\n{total:.1f} mg/kg', xy=(t0, 0.5), xytext=(t0 + 0.25, 8 + dy),
+                              fontsize=11, color=color, va='bottom', linespacing=1.0,
+                              arrowprops=dict(arrowstyle='->', color=color, lw=1.2))
+            mk.set_visible(False)
+            bolus_marks.append((t0, mk))
 
     def in_range(D, i):
         bb = D['bis'][1:i + 1]
@@ -97,6 +110,8 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
             inf.set_data(D['t'][:i + 1], D['inf'][:i + 1])
         leg.get_texts()[0].set_text(f'{rl_long:<9}{in_range(S, i)} in 40-60')
         leg.get_texts()[1].set_text(f'{"PID":<9}{in_range(P, i)} in 40-60')
+        for t0, mk in bolus_marks:
+            mk.set_visible(S['t'][i] >= t0)
         return []
 
     os.makedirs(os.path.dirname(out_mp4), exist_ok=True)
