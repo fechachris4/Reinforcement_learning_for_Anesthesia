@@ -130,7 +130,7 @@ def figure_traces(model, idx=(0, 3, 8, 11, 19, 26)):
             ax.plot([s['time_min'] for s in tr], [s['bis'] for s in tr], color=c, lw=1.5, label=lab)
         ax.axhspan(40, 60, color=C_TARGET, alpha=0.1, lw=0)
         ax.text(0.98, 0.97, describe(pats[i]), transform=ax.transAxes, fontsize=10, va='top', ha='right'); ax.set_ylim(0, 100); style(ax)
-    axes[0, 0].legend(frameon=False, loc='center right')
+    axes[0, 0].legend(frameon=False, loc='lower right')
     for ax in axes[:, 0]: ax.set_ylabel('BIS')
     for ax in axes[1]: ax.set_xlabel('time (min)')
     fig.tight_layout(); fig.savefig('media/test_traces.png'); plt.close(fig)
