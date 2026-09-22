@@ -20,7 +20,6 @@ from AnesthesiaEnv import EPISODE_MIN
 
 from style import COLORS, TARGET as C_TARGET
 C_PID = COLORS['PID']
-INK, MUTED = 'k', '0.4'
 
 
 def load_controller(path):
@@ -43,15 +42,14 @@ def render(rl_tr, pid_tr, out_mp4, out_gif, rl_name='SAC', stride_mp4=1, stride_
     S, P = arrays(rl_tr), arrays(pid_tr)   # S: the RL controller
     C_RL = COLORS[rl_name]
     n = len(S['t'])
-    plt.rcParams.update({'font.family': 'DejaVu Sans', 'font.size': 14, 'axes.edgecolor': '0.6',
-                         'axes.labelcolor': INK, 'xtick.color': INK, 'ytick.color': INK})
+    plt.rcParams.update({'font.size': 14, 'axes.edgecolor': '0.6'})
 
     fig = plt.figure(figsize=(12.8, 7.2), dpi=100, facecolor='white')
     gs = fig.add_gridspec(2, 1, height_ratios=[3, 1.25], left=0.08, right=0.97, top=0.92, bottom=0.10, hspace=0.12)
     axb = fig.add_subplot(gs[0])
     axi = fig.add_subplot(gs[1], sharex=axb)
 
-    clock = fig.text(0.97, 0.965, '', fontsize=15, color=INK, ha='right', va='center', family='DejaVu Sans Mono')
+    clock = fig.text(0.97, 0.965, '', fontsize=15, color='k', ha='right', va='center', family='DejaVu Sans Mono')
 
     # BIS panel
     axb.axhspan(40, 60, color=C_TARGET, alpha=0.12, lw=0)
@@ -78,7 +76,7 @@ def render(rl_tr, pid_tr, out_mp4, out_gif, rl_name='SAC', stride_mp4=1, stride_
     plt.setp(axb.get_xticklabels(), visible=False)
     # running time in 40-60, from 5 min on (same window as the results table)
     rhead = axb.text(0.995, 0.99, 'in 40-60 since 5 min', transform=axb.transAxes, ha='right', va='top',
-                     fontsize=13, color=MUTED)
+                     fontsize=13, color='0.4')
     rvals = [axb.text(0.995, 0.92 - 0.075 * k, '', transform=axb.transAxes, ha='right', va='top',
                       fontsize=14, color=c, family='DejaVu Sans Mono') for k, c in enumerate((C_RL, C_PID))]
 

@@ -1,15 +1,10 @@
 """
-Closed-loop propofol anaesthesia environment (Gymnasium).
+Gymnasium env for closed-loop propofol dosing: 5 s steps, 40 min cases.
 
-The controller only sees what an anaesthetist sees: a delayed, noisy BIS
-signal, the pump history and basic patient covariates. It does not see drug
-concentrations or the patient's hidden PK/PD parameters.
-
-Episode (40 min, 5 s control interval):
-  1. Induction: bolus from awake (BIS ~93) until measured BIS < 60,
-     the bolus budget runs out, or 3 min pass.
-  2. Maintenance: continuous infusion, target BIS 50 (clinical range 40-60),
-     while surgical stimulation pushes BIS up at random times.
+Bolus induction (at least 1 mg/kg) until filtered BIS < 60, the 2.5 mg/kg budget
+is used, or 3 min pass; then infusion targeting BIS 50, with random surgical
+stimulation. Observations: delayed noisy BIS, pump history, age, weight, time.
+No drug concentrations or PK/PD parameters.
 """
 
 import numpy as np
@@ -30,7 +25,7 @@ MAX_INFUSION = 1 / 3              # mg/kg/min  (20 mg/kg/h)
 MAX_BOLUS_RATE = 4.0              # mg/kg/min
 BOLUS_BUDGET = 2.5                # mg/kg
 MIN_BOLUS = 1.0                   # mg/kg; induction always gives at least this
-INDUCTION_TIMEOUT_MIN = 3.0       # after the minimum bolus, switch to maintenance by 3 min
+INDUCTION_TIMEOUT_MIN = 3.0
 
 # BIS monitor model
 BIS_TARGET = 50.0
@@ -39,12 +34,12 @@ BIS_DELAY_S = 20.0
 BIS_NOISE_SD = 3.0
 FILTER_ALPHA = 0.3
 DELAY_STEPS = int(BIS_DELAY_S / DT_S)
-BIS_UNSAFE = 25.0                 # extra penalty below this; a 5-point margin above the BIS < 20 overdose metric
+BIS_UNSAFE = 25.0                 # extra penalty below this
 
 # reward
 TRACK_WIDTH = 10.0
 OVERDOSE_W = 0.03                 # per BIS point below 40
-LIGHT_W = 0.03                    # per BIS point above 60 (awake or too light)
+LIGHT_W = 0.03                    # per BIS point above 60
 SMOOTH_W = 0.5
 DRUG_W = 0.05
 BOLUS_W = 0.1
@@ -55,7 +50,7 @@ OBS_DIM = 10
 OBS_BIS_FILTERED, OBS_BOLUS_LEFT, OBS_MAINTENANCE, OBS_AGE = 0, 5, 6, 7
 
 
-def stimulation_schedule(rng: np.random.Generator) -> list:
+def stimulation_schedule(rng):
     """Surgical stimulation events: (start_min, rise_min, hold_min, fall_min, amplitude)."""
     events = [(rng.uniform(8, 12), 1.0, rng.uniform(3, 8), 2.0, rng.uniform(8, 15))]
     if rng.random() < 0.7:
@@ -63,7 +58,7 @@ def stimulation_schedule(rng: np.random.Generator) -> list:
     return events
 
 
-def disturbance_at(t: float, events: list) -> float:
+def disturbance_at(t, events):
     d = 0.0
     for start, rise, hold, fall, amp in events:
         x = t - start
@@ -80,16 +75,13 @@ def disturbance_at(t: float, events: list) -> float:
 
 class AnesthesiaEnv(gym.Env):
     """
-    Args:
-        patient: fixed patient dict (from patients.py). If None, a new patient
-            is sampled at every reset (training).
-        noise_seed: fixes monitor noise and stimulation timing, so different
-            controllers can be compared on identical conditions.
+    patient=None samples a new patient at each reset (training). noise_seed fixes
+    monitor noise and stimulation, so controllers can be compared on identical cases.
     """
 
     metadata = {'render_modes': []}
 
-    def __init__(self, patient: dict = None, noise_seed: int = None):
+    def __init__(self, patient=None, noise_seed=None):
         super().__init__()
         self.action_space = spaces.Box(0.0, 1.0, shape=(2,), dtype=np.float32)  # [infusion, bolus]
         self.observation_space = spaces.Box(-np.inf, np.inf, shape=(OBS_DIM,), dtype=np.float32)
@@ -97,7 +89,6 @@ class AnesthesiaEnv(gym.Env):
         self.noise_seed = noise_seed
         self.patient_rng = np.random.default_rng()
 
-    # ------------------------------------------------------------------ reset
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         if seed is not None:
@@ -123,12 +114,11 @@ class AnesthesiaEnv(gym.Env):
         self.infusion_hist = [0.0] * int(300 / DT_S)
         return self._obs(), self._info(0.0, 0.0)
 
-    # ------------------------------------------------------------------- step
     def step(self, action):
         a = np.clip(np.asarray(action, dtype=np.float64), 0.0, 1.0)
         t = self.step_count * DT
 
-        # phase switch is decided on the measured signal, as a clinician would
+        # switch on the filtered measured BIS, not the true one
         given = BOLUS_BUDGET - self.bolus_left
         if (not self.in_maintenance and given >= MIN_BOLUS - 1e-9
                 and (self.filtered <= BIS_INDUCTION_DONE or self.bolus_left <= 1e-9 or t >= INDUCTION_TIMEOUT_MIN)):
@@ -166,7 +156,7 @@ class AnesthesiaEnv(gym.Env):
         self.infusion_hist.append(infusion)
         self.infusion_hist.pop(0)
 
-        # reward uses the true BIS (available in simulation only, never observed)
+        # reward uses the true BIS, which the agent never sees
         err = self.true_bis - BIS_TARGET
         reward = (np.exp(-err ** 2 / (2 * TRACK_WIDTH ** 2))
                   - OVERDOSE_W * max(0.0, 40.0 - self.true_bis)
@@ -179,15 +169,14 @@ class AnesthesiaEnv(gym.Env):
             reward -= UNSAFE_PENALTY
 
         self.step_count += 1
-        terminated = False     # episodes always run the full 40 min so every controller is scored on the same window
+        terminated = False     # always run the full 40 min
         truncated = self.step_count >= MAX_STEPS
         return self._obs(), float(reward), bool(terminated), bool(truncated), self._info(infusion, bolus_mgkg)
 
-    # ---------------------------------------------------------------- helpers
-    def _measure(self) -> float:
+    def _measure(self):
         return float(np.clip(self.bis_history[0] + self.noise_rng.normal(0, BIS_NOISE_SD), 0, 100))
 
-    def _obs(self) -> np.ndarray:
+    def _obs(self):
         trend = (self.filtered_hist[-1] - self.filtered_hist[0]) / (6 * DT)   # BIS per min over 30 s
         return np.array([
             (self.filtered - BIS_TARGET) / 50.0,
@@ -202,7 +191,7 @@ class AnesthesiaEnv(gym.Env):
             self.step_count / MAX_STEPS,
         ], dtype=np.float32)
 
-    def _info(self, infusion: float, bolus_mgkg: float) -> dict:
+    def _info(self, infusion, bolus_mgkg):
         ce, _ = self.patient.get_effect_site_concentrations()
         return {
             'time_min': self.step_count * DT,

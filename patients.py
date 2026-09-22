@@ -10,7 +10,7 @@ variance some patients can't be brought into range within the infusion limit.
 
 import numpy as np
 
-TEST_SEED = 20_260_922       # held-out test patients
+TEST_SEED = 20260922         # held-out test patients
 TUNING_SEED = 7              # PID tuning and RL checkpoint selection
 
 # log-normal variances (omega^2) for multiplicative factors
@@ -24,7 +24,7 @@ VARIANCE_SCALE = 0.5
 E0_SD = 3.0      # additive, BIS units
 
 
-def sample_patient(rng: np.random.Generator) -> dict:
+def sample_patient(rng):
     """Draw one adult surgical patient."""
     sex = 'm' if rng.random() < 0.5 else 'f'
     age = float(rng.uniform(18, 80))
@@ -42,18 +42,18 @@ def sample_patient(rng: np.random.Generator) -> dict:
             'variability': variability}
 
 
-def patient_set(seed: int, n: int) -> list:
+def patient_set(seed, n):
     rng = np.random.default_rng(seed)
     return [sample_patient(rng) for _ in range(n)]
 
 
-def test_patients(n: int = 30) -> list:
+def test_patients(n=30):
     return patient_set(TEST_SEED, n)
 
 
-def tuning_patients(n: int = 20) -> list:
+def tuning_patients(n=20):
     return patient_set(TUNING_SEED, n)
 
 
-def describe(p: dict) -> str:
+def describe(p):
     return f"{p['gender'].upper()}, {p['age']:.0f} y, {p['weight']:.0f} kg, {p['height']:.0f} cm"
