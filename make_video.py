@@ -1,21 +1,22 @@
 """
-Render a side-by-side simulation video: SAC vs PID on one held-out patient.
+Render a simulation video: an RL controller vs the PID on one held-out patient.
 
-    python make_video.py --patient 3 --model models/sac_seed0.zip
+    python make_video.py --patient 0 --model models/residual_seed4.zip
 Outputs media/sac_vs_pid.mp4 and media/sac_vs_pid.gif
 """
 
-import argparse, json, os
+import argparse, os
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.animation import FFMpegWriter, PillowWriter
+from matplotlib.patches import Rectangle
 
 from evaluate import run_episode, TEST_NOISE_OFFSET
-from patients import test_patients, describe
+from patients import test_patients
 from pid_baseline import load_pid
-from AnesthesiaEnv import EPISODE_MIN, stimulation_schedule
+from AnesthesiaEnv import EPISODE_MIN
 
 from style import COLORS, TARGET as C_TARGET
 C_PID = COLORS['PID']
@@ -38,12 +39,6 @@ def arrays(trace):
             'bol': g('bolus_mgkg')}
 
 
-def zone(b):
-    if b > 60: return 'too light', '#D97706'
-    if b < 40: return 'too deep', '#7C3AED'
-    return 'in target', C_TARGET
-
-
 def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SAC', stride_mp4=1, stride_gif=3):
     S, P = arrays(sac_tr), arrays(pid_tr)
     C_SAC = COLORS[rl_name]
@@ -61,21 +56,29 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
     # BIS panel
     axb.axhspan(40, 60, color=C_TARGET, alpha=0.12, lw=0)
     stim = S['dist'] > 0.5
+    stim_marks = []   # shown once each event starts
     if stim.any():
         edges = np.flatnonzero(np.diff(np.r_[0, stim.astype(int), 0]))
         for a, b in zip(edges[::2], edges[1::2]):
-            axb.axvspan(S['t'][a], S['t'][min(b, n - 1)], color='#9CA3AF', alpha=0.15, lw=0)
-            axb.text(S['t'][a] + 0.3, 2, 'stimulation', fontsize=13, color='#4B5563', va='bottom')
+            span = Rectangle((S['t'][a], 0), 0, 1, transform=axb.get_xaxis_transform(), color='#9CA3AF', alpha=0.15, lw=0)
+            axb.add_patch(span)
+            label = axb.text(S['t'][a] + 0.3, 2, 'stimulation', fontsize=13, color='#4B5563', va='bottom')
+            stim_marks.append((S['t'][a], S['t'][min(b, n - 1)], span, label))
     axb.set_xlim(0, EPISODE_MIN); axb.set_ylim(0, 100); axb.set_yticks([0, 20, 40, 60, 80, 100])
     axb.set_ylabel('BIS')
-    (ms,) = axb.plot([], [], '.', color=C_SAC, ms=4, alpha=0.45)
-    (mp,) = axb.plot([], [], '.', color=C_PID, ms=4, alpha=0.45)
+    (ms,) = axb.plot([], [], '.', color=C_SAC, ms=3, alpha=0.3)
+    (mp,) = axb.plot([], [], '.', color=C_PID, ms=3, alpha=0.3)
     (ls,) = axb.plot([], [], color=C_SAC, lw=2.6)
     (lp,) = axb.plot([], [], color=C_PID, lw=2.2)
-    leg = fig.legend([ls, lp], [rl_long, 'PID'], loc='center left', bbox_to_anchor=(0.07, 0.965), ncol=2,
+    fig.legend([ls, lp], [rl_long, 'PID'], loc='center left', bbox_to_anchor=(0.07, 0.965), ncol=2,
                      frameon=False, fontsize=14, handlelength=1.5, columnspacing=2.5)
     for s in ('top', 'right'): axb.spines[s].set_visible(False)
     plt.setp(axb.get_xticklabels(), visible=False)
+    # running time in 40-60, from 5 min on (same window as the results table)
+    rhead = axb.text(0.995, 0.99, 'in 40-60 since 5 min', transform=axb.transAxes, ha='right', va='top',
+                     fontsize=12, color=MUTED)
+    rvals = [axb.text(0.995, 0.92 - 0.075 * k, '', transform=axb.transAxes, ha='right', va='top',
+                      fontsize=14, color=c, family='DejaVu Sans Mono') for k, c in enumerate((C_SAC, C_PID))]
 
     # infusion panel
     axi.set_ylim(0, 21); axi.set_yticks([0, 10, 20]); axi.set_ylabel('Propofol\n(mg/kg/h)')
@@ -85,11 +88,17 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
     for s in ('top', 'right'): axi.spines[s].set_visible(False)
 
     # induction boluses don't fit on the infusion axis, so state them in a line of text
-    parts = [f'{name} {D["bol"].sum():.1f} mg/kg' for name, D in ((rl_long, S), ('PID', P)) if D['bol'].sum() >= 0.1]
-    t_bolus = max([D['t'][np.argmax(D['bol'] > 0)] for D in (S, P) if D['bol'].sum() >= 0.1], default=0)
-    bolus_text = axi.text(0.03, 0.97, 'Induction bolus: ' + ',  '.join(parts), transform=axi.transAxes,
-                          fontsize=13, color=INK, va='top')
-    bolus_text.set_visible(False)
+    # induction boluses don't fit on the infusion axis, so state them in a line of text, one colour per controller
+    given = [(name, D, c) for name, D, c in ((rl_long, S, C_SAC), ('PID', P, C_PID)) if D['bol'].sum() >= 0.1]
+    t_bolus = max([D['t'][np.argmax(D['bol'] > 0)] for _, D, _ in given], default=0)
+    bolus_texts = [axi.text(0.03, 0.97, 'Induction bolus:', transform=axi.transAxes, fontsize=13, color=INK, va='top')]
+    fig.canvas.draw()
+    for name, D, c in given:
+        x = axi.transAxes.inverted().transform(bolus_texts[-1].get_window_extent().corners()[-1])[0] + 0.03
+        bolus_texts.append(axi.text(x, 0.97, f'{name} {D["bol"].sum():.1f} mg/kg', transform=axi.transAxes,
+                                    fontsize=13, color=c, va='top'))
+        fig.canvas.draw()
+    for t in bolus_texts: t.set_visible(False)
 
     def in_range(D, i):
         # from 5 min on, same window as the results table
@@ -103,10 +112,13 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
             line.set_data(D['t'][:i + 1], D['bis'][:i + 1])
             dots.set_data(D['t'][:i + 1], D['meas'][:i + 1])
             inf.set_data(D['t'][:i + 1], D['inf'][:i + 1])
-        for txt, name, D in ((leg.get_texts()[0], rl_long, S), (leg.get_texts()[1], 'PID', P)):
+        for t0, t1, span, label in stim_marks:   # grow each event as it happens
+            span.set_width(np.clip(S['t'][i] - t0, 0, t1 - t0)); label.set_visible(S['t'][i] >= t0)
+        rhead.set_visible(S['t'][i] >= 5.0)
+        for txt, name, D in zip(rvals, (rl_long, 'PID'), (S, P)):
             r = in_range(D, i)
-            txt.set_text(name if r is None else f'{name}: {r} in 40-60 since 5 min')
-        bolus_text.set_visible(S['t'][i] >= t_bolus)
+            txt.set_text('' if r is None else f'{name} {r:>4}')
+        for t in bolus_texts: t.set_visible(S['t'][i] >= t_bolus)
         return []
 
     os.makedirs(os.path.dirname(out_mp4), exist_ok=True)
