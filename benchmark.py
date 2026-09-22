@@ -22,14 +22,14 @@ from residual import ResidualPolicy
 
 from style import COLORS as C, TARGET as C_TARGET
 MUTED = '#6B7280'
-ROWS = [('time_in_target', 'Time in target, BIS 40-60 (%)'),
-        ('MDAPE', 'MDAPE, inaccuracy (%)'),
-        ('MDPE', 'MDPE, bias (%)'),
-        ('wobble', 'Wobble (%)'),
-        ('time_below_40', 'Time too deep, BIS < 40 (%)'),
-        ('min_bis', 'Lowest BIS reached'),
-        ('induction_min', 'Induction time (min)'),
-        ('propofol_mgkgh', 'Maintenance propofol (mg/kg/h)')]
+ROWS = [('time_in_target', 'Maintenance: time in 40-60 (%)'),
+        ('MDAPE', 'Maintenance: MDAPE (%)'),
+        ('MDPE', 'Maintenance: MDPE (%)'),
+        ('wobble', 'Maintenance: wobble (%)'),
+        ('propofol_mgkgh', 'Maintenance: propofol (mg/kg/h)'),
+        ('case_below_40', 'Whole case: time below 40 (%)'),
+        ('case_above_60', 'Whole case: time above 60 after 1 min (%)'),
+        ('reached_below_20', 'Patients reaching BIS < 20 (%)')]
 
 
 def load(kind, path):
@@ -50,7 +50,7 @@ def main():
             print(f'{label} seed {s}: time in target {summ["time_in_target"]:.1f}%')
 
     names = [n for n in ('PID', 'SAC', 'PID + SAC') if res[n]]
-    head = '| Metric | ' + ' | '.join(f'{n} ({len(res[n])} seed{"s" if len(res[n]) > 1 else ""})' if n != 'PID' else 'PID (tuned)' for n in names) + ' |'
+    head = '| | ' + ' | '.join(names) + ' |'
     lines = [head, '|' + '---|' * (len(names) + 1)]
     for k, label in ROWS:
         cells = []

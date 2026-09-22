@@ -18,14 +18,16 @@ The PID gives an age-adjusted bolus (2.0 mg/kg, or 1.5 mg/kg from age 55), then 
 
 ## Results
 
-| Maintenance phase | PID | SAC | PID + SAC |
+| | PID | SAC | PID + SAC |
 |---|---|---|---|
-| Time in 40-60 (%) | 81.2 | 71.3 ± 1.8 | 78.5 ± 0.8 |
-| MDAPE (%) | 8.0 | 11.8 ± 1.1 | 8.4 ± 0.4 |
-| MDPE (%) | 1.9 | 0.5 ± 0.3 | 2.1 ± 0.1 |
-| Wobble (%) | 6.1 | 7.4 ± 1.0 | 6.7 ± 0.2 |
-| Time below 40 (%) | 8.8 | 14.4 ± 2.2 | 11.9 ± 0.9 |
-| Propofol (mg/kg/h) | 7.1 | 6.8 ± 0.7 | 6.7 ± 0.1 |
+| Maintenance: time in 40-60 (%) | 81.2 | 71.3 ± 1.8 | 78.5 ± 0.8 |
+| Maintenance: MDAPE (%) | 8.0 | 11.8 ± 1.1 | 8.4 ± 0.4 |
+| Maintenance: MDPE (%) | 1.9 | 0.5 ± 0.3 | 2.1 ± 0.1 |
+| Maintenance: wobble (%) | 6.1 | 7.4 ± 1.0 | 6.7 ± 0.2 |
+| Maintenance: propofol (mg/kg/h) | 7.1 | 6.8 ± 0.7 | 6.7 ± 0.1 |
+| Whole case: time below 40 (%) | 8.8 | 13.9 ± 2.2 | 11.8 ± 0.9 |
+| Whole case: time above 60, after the first minute (%) | 11.3 | 15.7 ± 2.9 | 9.9 ± 0.4 |
+| Patients that reach BIS < 20 (%) | 23 | 24 ± 10 | 29 ± 4 |
 
 MDPE, MDAPE and wobble are the bias, inaccuracy and variability measures from Varvel et al. (1992).
 
@@ -39,7 +41,7 @@ MDPE, MDAPE and wobble are the bias, inaccuracy and variability measures from Va
 
 ## What went wrong
 
-**SAC found a loophole.** For older patients it skips the bolus, waits about 3 min, then runs the infusion at its maximum. That avoids the deep overshoot the PID causes, but leaves the patient awake as surgery starts. Penalising time above 60 did not remove it.
+**SAC found a loophole.** For older patients it skips the bolus, waits about 3 min, then runs the infusion at its maximum. In the video patient that softens the overshoot (lowest BIS 28 vs 9), but it leaves her awake as surgery starts, and across the test set SAC still takes about a quarter of patients below BIS 20, like the PID. Penalising time above 60 did not remove the loophole.
 
 **Residual SAC made the PID worse.** It starts as the PID and only has to learn small corrections, but its corrections lowered its own training reward compared with applying none. My explanation is credit assignment: a dose change reaches the measured BIS 30 to 60 s later, and the PID underneath partly cancels each correction.
 

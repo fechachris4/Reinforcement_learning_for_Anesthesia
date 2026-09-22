@@ -56,6 +56,10 @@ def episode_metrics(trace):
         'min_bis': float(bis.min()),
         'induction_min': float(t[ind_idx]),
         'propofol_mgkgh': float(inf.mean()),
+        # whole case, induction included
+        'case_below_40': float(np.mean(bis < 40) * 100),
+        'case_above_60': float(np.mean(bis[t > 1.0] > 60) * 100),   # ignore the first minute (awake at start)
+        'reached_below_20': float(bis.min() < 20) * 100,
     }
 
 

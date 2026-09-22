@@ -59,3 +59,4 @@ media/test.mp4
 media/test_final.png
 logs_residual*.txt
 video.log
+media/_*
