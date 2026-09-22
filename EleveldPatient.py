@@ -197,7 +197,6 @@ class EleveldPatient:
     def _calc_pd_parameters(self):
         """BIS = E0 * (1 - Ce^g / (Ce^g + Ce50^g))."""
         self.E0 = 93.0
-        self.Emax = 0.0
         self.Ce50_prop_base = 3.08 * pow(10, -0.00635 * (self.age - 35))   # ug/mL
         self.gamma_prop = 2.0
         # rough value, not fitted; has no effect while remifentanil is 0
@@ -242,5 +241,20 @@ class EleveldPatient:
         """Bolus goes straight into the central compartment."""
         self.state[0] += bolus_mg
 
-    def reset(self):
-        self.state = np.zeros(8)
+
+if __name__ == '__main__':
+    # check the matrix-exponential step against an ODE solver: 2 mg/kg bolus, then 8 mg/kg/h
+    import time
+    from scipy.integrate import solve_ivp
+    p = EleveldPatient(60, 70, 'm', 170)
+    p.add_bolus(140)
+    y, dt, worst, t_ode, t_exp = p.state.copy(), 5 / 60, 0.0, 0.0, 0.0
+    for k in range(480):
+        u = 0.0 if k < 36 else 8 * 70 / 60
+        t0 = time.perf_counter()
+        y = solve_ivp(p.get_derivatives, (0, dt), y, args=(u, 0.0), rtol=1e-6, atol=1e-9).y[:, -1]
+        t1 = time.perf_counter()
+        bis = p.step(dt, u, 0.0)
+        t_ode, t_exp = t_ode + t1 - t0, t_exp + time.perf_counter() - t1
+        worst = max(worst, abs(bis - p.get_bis(y[3], y[7])))
+    print(f'max BIS difference over 40 min: {worst:.1e}, step is {t_ode / t_exp:.0f}x faster than solve_ivp')
