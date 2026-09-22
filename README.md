@@ -6,19 +6,21 @@ This started as coursework in January 2026. That version trained and tested on t
 
 ![PID + SAC vs PID on an unseen patient](media/sac_vs_pid.gif)
 
-*The best case, not a typical one: the 72-year-old test patient where PID + SAC gains most (+12 points averaged over seeds, +24 on seed 4 shown here, against +0.4 overall). The PID's bolus takes her to BIS 9, while PID + SAC gives the 1 mg/kg minimum; dots are the noisy, 20 s delayed BIS the controllers see. [MP4](media/sac_vs_pid.mp4)*
+*The best case: the 72-year-old test patient where PID + SAC gains most (+12 points averaged over seeds, against +0.4 overall), though it still leaves her near BIS 20 for about 5 min. Dots are the noisy, 20 s delayed BIS the controllers see. [MP4](media/sac_vs_pid.mp4)*
 
-It didn't beat the PID overall. Across 30 test patients, SAC learning corrections on top of the PID ties with it (85% of the time in the 40 to 60 range for both), and pure SAC is clearly worse (70%).
+It didn't beat the PID overall. Across 30 test patients, SAC learning corrections on top of the PID ties with it (85% of the time in the 40-60 range for both), and pure SAC is clearly worse (70%).
 
 ## Setup
 
-BIS (bispectral index) is the depth signal: about 93 awake, 40 to 60 for surgery, 0 for no brain activity. Patients are sampled with their own age, size and response to propofol from the [Eleveld 2018](#references) model, at half its published inter-patient variance (at full variance some can't be reached within the infusion limit). The controller sees what a clinician would: BIS 20 s late with noise, the pump history, age and weight. Surgical stimulation pushes BIS up at random times.
+BIS (bispectral index) is the depth signal: about 93 awake, 40-60 for surgery. Patients are sampled from the [Eleveld 2018](#references) propofol model at half its published inter-patient variance (at full variance some can't be reached within the infusion limit). The controller sees what a clinician would: BIS 20 s late with noise, the pump history, age and weight. Surgical stimulation pushes BIS up at random times.
 
-Each case starts with a bolus, given in 0.33 mg/kg steps (at least 1 mg/kg), then switches to an infusion once the smoothed BIS (exponential filter, α = 0.3) drops below 60, the 2.5 mg/kg budget is used, or 3 min pass. The PID gives an age-adjusted bolus (2.0 mg/kg, or 1.67 from age 55), then runs PI control on the infusion, with gains tuned on 20 separate patients. It has no D term: on the tuning patients any derivative gain made it worse, because BIS is noisy and delayed. PID + SAC learns bounded corrections to the PID's bolus size and infusion. The RL reward peaks at BIS 50 and penalises time outside 40 to 60 (more below 25), drug use and abrupt dose changes. The 30 test patients were never used for training or tuning, and every controller gets the same noise and stimulation for a given patient. For each of five training seeds I keep the checkpoint that scored best on the 20 tuning patients.
+Each case starts with a bolus of 1 to 2.5 mg/kg, then switches to an infusion once BIS is below 60, the bolus budget is used or 3 min pass. The PID gives an age-adjusted bolus (2.0 mg/kg, or 1.67 from age 55), then PI control on the infusion; any derivative gain made it worse on the noisy, delayed BIS. PID + SAC learns bounded corrections to the PID's bolus and infusion. The RL reward peaks at BIS 50 and penalises time outside 40-60, drug use and abrupt dose changes.
+
+The PID gains and the RL checkpoints (best of each training run) are chosen on 20 tuning patients. The 30 test patients are used only here, with the same noise and stimulation for every controller. RL is trained with five seeds.
 
 ## Results
 
-Scored from 5 to 40 min. RL columns are mean ± sd over five seeds.
+RL columns are mean ± sd over five seeds. The first four rows are scored from 5 to 40 min, the last three over the whole case.
 
 | | PID | SAC | PID + SAC |
 |---|---|---|---|
@@ -34,11 +36,11 @@ Against the PID, PID + SAC is +0.4 percentage points on time in range (95% CI �
 
 <img src="media/paired_patients.png" width="80%">
 
-*Each point is a test patient, RL averaged over seeds; note the different y scales. (b) PID + SAC gains up to 12 points on the patients the PID handles worst and loses a point or two on many it already handles well (dashed: ±1).*
+*Each point is a test patient, RL averaged over seeds; note the different y scales. (b) PID + SAC gains up to 12 points on patients the PID handles badly and loses up to 4 on others (dashed: ±1).*
 
 ![BIS traces on six test patients](media/test_traces.png)
 
-*True (noise-free) BIS for six test patients across the age range, using each RL controller's best seed on validation. Green: 40 to 60. Grey: surgical stimulation.*
+*True (noise-free) BIS for six test patients across the age range, using each RL controller's best seed on validation; top left is the GIF patient. Green: 40-60. Grey: surgical stimulation.*
 
 ## What each controller learned
 
@@ -68,13 +70,13 @@ python benchmark.py
 python make_video.py --patient 0 --model models/residual_seed4.zip
 ```
 
-Five seeds of one controller take about 10 min on an Apple M5 laptop, run in parallel.
+Five seeds of one controller take about 10 min on an Apple M5 laptop, run in parallel (8 simulated patients per run, 2 gradient steps per 8 environment steps).
 
 ## Limitations and next steps
 
-Simulation only, with a published population model at reduced variance. BIS only: no blood pressure, no opioid dosing. Stimulation is a simple offset on BIS. Not for clinical use.
+Simulation only, with a published population model at reduced variance. BIS only: no blood pressure, no opioid dosing. Stimulation is a simple offset on BIS. Neither RL policy has memory, which is a handicap with a 20 s delay. Not for clinical use.
 
-Next I would test the age effect on more older patients, give the policy memory (recurrent, or a stack of recent BIS and doses) to handle the delay, and compare against MPC on the patient model.
+Next I would test the age effect on more older patients, give the policy memory (recurrent, or a stack of recent BIS and doses), and compare against MPC on the patient model.
 
 ## References
 
