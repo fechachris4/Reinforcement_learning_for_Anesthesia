@@ -52,7 +52,7 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
                          'axes.labelcolor': INK, 'xtick.color': INK, 'ytick.color': INK})
 
     fig = plt.figure(figsize=(12.8, 7.2), dpi=100, facecolor='white')
-    gs = fig.add_gridspec(2, 1, height_ratios=[3, 1.2], left=0.08, right=0.97, top=0.92, bottom=0.10, hspace=0.12)
+    gs = fig.add_gridspec(2, 1, height_ratios=[3, 0.9], left=0.08, right=0.97, top=0.92, bottom=0.10, hspace=0.12)
     axb = fig.add_subplot(gs[0])
     axi = fig.add_subplot(gs[1], sharex=axb)
 
@@ -87,7 +87,7 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
     # induction boluses don't fit on the infusion axis, so state them in a line of text
     parts = [f'{name} {D["bol"].sum():.1f} mg/kg' for name, D in ((rl_long, S), ('PID', P)) if D['bol'].sum() >= 0.1]
     t_bolus = max([D['t'][np.argmax(D['bol'] > 0)] for D in (S, P) if D['bol'].sum() >= 0.1], default=0)
-    bolus_text = axi.text(0.01, 0.97, 'Induction bolus: ' + ',  '.join(parts), transform=axi.transAxes,
+    bolus_text = axi.text(0.03, 0.97, 'Induction bolus: ' + ',  '.join(parts), transform=axi.transAxes,
                           fontsize=13, color=INK, va='top')
     bolus_text.set_visible(False)
 
