@@ -31,13 +31,13 @@ The PID gives an age-adjusted bolus (2.0 mg/kg, or 1.5 mg/kg from age 55), then 
 
 MDPE, MDAPE and wobble are the bias, inaccuracy and variability measures from Varvel et al. (1992).
 
-<img src="media/paired_patients.png" width="45%">
+<img src="media/paired_patients.png" width="42%">
 
 *Time in range per test patient. Points above the diagonal are patients where the RL controller beat the PID: 3 of 30 for SAC, 9 of 30 for PID + SAC.*
 
 ![BIS traces on six test patients](media/test_traces.png)
 
-*Six test patients, PID vs PID + SAC. Shaded band: 40 to 60.*
+*Six test patients, shaded band 40 to 60. In the three patients over 70, SAC waits about 3 min before dosing. In the two younger women it settles below 40 for much of the case. The 20-year-old stays above 60 for the first 17 min whatever the controller does.*
 
 ## What went wrong
 
@@ -45,7 +45,7 @@ MDPE, MDAPE and wobble are the bias, inaccuracy and variability measures from Va
 
 **Residual SAC made the PID worse.** It starts as the PID and only has to learn small corrections, but its corrections lowered its own training reward compared with applying none. My explanation is credit assignment: a dose change reaches the measured BIS 30 to 60 s later, and the PID underneath partly cancels each correction.
 
-**Induction is the weak point for everyone.** Even with the age adjustment, the PID's bolus takes 7 of 30 test patients below BIS 20. The opposite also happens: the 20-year-old test patient (bottom right above) sits above 60 for 20 min with the infusion at its 20 mg/kg/h cap for most of that time.
+**Induction is the weak point for everyone.** Even with the age adjustment, the PID's bolus takes 7 of 30 test patients below BIS 20. The opposite also happens: the 20-year-old (bottom right) sits above 60 for 20 min under the PID, with the infusion at its 20 mg/kg/h cap for most of that time.
 
 ## Next
 

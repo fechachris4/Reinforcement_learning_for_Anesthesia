@@ -3,6 +3,6 @@
 COLORS = {
     'PID': '#EA580C',        # orange
     'SAC': '#2563EB',        # blue
-    'PID + SAC': '#7C3AED',  # purple
+    'PID + SAC': '#111827',  # near-black
 }
 TARGET = '#16A34A'

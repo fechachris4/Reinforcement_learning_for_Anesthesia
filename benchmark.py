@@ -85,55 +85,48 @@ def main():
     open('results/benchmark.md', 'w').write('\n'.join(lines) + '\n')
     print('\n'.join(lines))
 
-    figure_learning_curves(res['PID'][0][0]['time_in_target'])
     figure_paired(per_patient)
-    if 'residual' in best:
-        figure_traces(load('residual', f'models/residual_seed{best["residual"]}.zip'))
+    if 'residual' in best and 'sac' in best:
+        figure_traces({'PID': load_pid(),
+                       'SAC': load('sac', f'models/sac_seed{best["sac"]}.zip'),
+                       'PID + SAC': load('residual', f'models/residual_seed{best["residual"]}.zip')})
 
 
 def style(ax):
     for s in ('top', 'right'): ax.spines[s].set_visible(False)
-    ax.grid(axis='y', color='#E5E7EB')
-
-
-def figure_learning_curves(pid_test):
-    fig, ax = plt.subplots(figsize=(7, 3.6), dpi=130)
-    for kind, label in (('sac', 'SAC'), ('residual', 'PID + SAC')):
-        for i, path in enumerate(sorted(glob.glob(f'results/learning_curve_{kind}_seed*.json'))):
-            log = json.load(open(path))
-            ax.plot([r['step'] / 1000 for r in log], [r['time_in_target'] for r in log], color=C[label],
-                    lw=1.6, alpha=0.85, label=label if i == 0 else None)
-    ax.set_xlabel('training steps (thousands)'); ax.set_ylabel('time in target (%)')
-    ax.set_ylim(0, 100); style(ax); ax.legend(frameon=False, loc='lower right')
-    fig.tight_layout(); fig.savefig('media/learning_curves.png'); plt.close(fig)
+    ax.tick_params(labelsize=11)
 
 
 def figure_paired(pp):
-    fig, ax = plt.subplots(figsize=(4.8, 4.6), dpi=130)
-    ax.plot([0, 100], [0, 100], color='#D1D5DB', lw=1)
-    for n in ('SAC', 'PID + SAC'):
+    fig, ax = plt.subplots(figsize=(4.4, 4.2), dpi=150)
+    ax.plot([0, 100], [0, 100], color='#9CA3AF', lw=1, ls='--')
+    for n, mk in (('SAC', 'o'), ('PID + SAC', '^')):
         if n in pp:
-            ax.scatter(pp['PID'], pp[n], s=30, color=C[n], alpha=0.85, label=n,
-                       marker='o' if n == 'SAC' else '^')
-    ax.set_xlabel('PID: time in target (%)'); ax.set_ylabel('RL controller: time in target (%)')
-    ax.text(4, 93, 'above the line: RL better', color=MUTED, fontsize=9)
-    ax.set_xlim(0, 100); ax.set_ylim(0, 100); style(ax); ax.legend(frameon=False, loc='lower right')
+            ax.scatter(pp['PID'], pp[n], s=34, color=C[n], alpha=0.85, label=n, marker=mk, lw=0)
+    ax.set_xlabel('PID, time in 40-60 (%)', fontsize=12)
+    ax.set_ylabel('RL, time in 40-60 (%)', fontsize=12)
+    ax.set_xticks([0, 25, 50, 75, 100]); ax.set_yticks([0, 25, 50, 75, 100])
+    ax.set_xlim(0, 100); ax.set_ylim(0, 100); style(ax)
+    ax.legend(frameon=False, loc='lower right', fontsize=11, handletextpad=0.2)
     fig.tight_layout(); fig.savefig('media/paired_patients.png'); plt.close(fig)
 
 
-def figure_traces(model, idx=(0, 3, 8, 11, 19, 26)):
-    pats = test_patients(30); pid = load_pid()
+def figure_traces(models, idx=(0, 3, 8, 11, 19, 26)):
+    pats = test_patients(30)
     fig, axes = plt.subplots(2, 3, figsize=(12, 5.6), dpi=120, sharex=True, sharey=True)
     for ax, i in zip(axes.flat, idx):
-        for ctrl, c, lab in ((pid, C['PID'], 'PID'), (model, C['PID + SAC'], 'PID + SAC')):
+        for lab, ctrl in models.items():
             tr = run_episode(ctrl, pats[i], TEST_NOISE_OFFSET + i)
-            ax.plot([s['time_min'] for s in tr], [s['bis'] for s in tr], color=c, lw=1.5, label=lab)
+            ax.plot([s['time_min'] for s in tr], [s['bis'] for s in tr], color=C[lab], lw=1.4, label=lab)
         ax.axhspan(40, 60, color=C_TARGET, alpha=0.1, lw=0)
-        ax.text(0.98, 0.97, describe(pats[i]), transform=ax.transAxes, fontsize=10, va='top', ha='right'); ax.set_ylim(0, 100); style(ax)
-    axes[0, 0].legend(frameon=False, loc='lower right')
-    for ax in axes[:, 0]: ax.set_ylabel('BIS')
-    for ax in axes[1]: ax.set_xlabel('time (min)')
-    fig.tight_layout(); fig.savefig('media/test_traces.png'); plt.close(fig)
+        ax.text(0.98, 0.97, describe(pats[i]), transform=ax.transAxes, fontsize=11, va='top', ha='right')
+        ax.set_ylim(0, 100); ax.set_xlim(0, 40); ax.set_xticks([0, 10, 20, 30, 40]); style(ax)
+    for ax in axes[:, 0]: ax.set_ylabel('BIS', fontsize=12)
+    for ax in axes[1]: ax.set_xlabel('Time (min)', fontsize=12)
+    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    h, l = axes[0, 0].get_legend_handles_labels()
+    fig.legend(h, l, loc='upper center', ncol=3, frameon=False, fontsize=12)
+    fig.savefig('media/test_traces.png'); plt.close(fig)
 
 
 if __name__ == '__main__':
