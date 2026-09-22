@@ -1,16 +1,8 @@
 """
-Residual reinforcement learning: PID runs underneath, SAC learns corrections.
-
-At every step the PID proposes an action. The agent sees the normal
-observation plus the PID's proposed infusion, and outputs two bounded
-corrections:
-  - maintenance: infusion = PID infusion + 0.15 * a[0]  (about ±3 mg/kg/h)
-  - induction:   bolus size = PID bolus x (1 + 0.4 * a[1]) (0.6x to 1.4x)
-
-Corrections carry a small quadratic cost, so the agent only departs from the
-PID where that pays off.
-
-With a = 0 the controller is exactly the tuned PID.
+Residual RL: the PID runs underneath, SAC learns bounded corrections.
+Maintenance: infusion = PID + 0.15 * a[0] (about +-3 mg/kg/h).
+Induction: bolus target = PID target * (1 + 0.4 * a[1]).
+Corrections cost 0.05 * a^2 per step; a = 0 is exactly the tuned PID.
 """
 
 import numpy as np

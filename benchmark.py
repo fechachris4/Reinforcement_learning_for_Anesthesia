@@ -1,8 +1,5 @@
 """
-Benchmark three controllers on 30 held-out patients:
-  PID          tuned clinical-style baseline
-  SAC          pure reinforcement learning (5 seeds)
-  PID + SAC    residual RL: SAC learns corrections on top of the PID (5 seeds)
+PID vs SAC vs PID + SAC on the 30 test patients, over every seed in models/.
 
     python benchmark.py
 Writes results/benchmark.json, results/benchmark.md and figures in media/.

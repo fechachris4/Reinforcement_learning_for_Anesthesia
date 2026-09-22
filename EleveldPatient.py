@@ -221,8 +221,7 @@ class EleveldPatient:
     def step(self, dt, u_prop, u_remi):
         """Advance dt minutes at constant infusion (propofol mg/min, remifentanil ug/min). Returns BIS."""
         u = np.array([max(0, u_prop), max(0, u_remi)])
-        # the PK model is linear, so the zero-order-hold update is exact
-        # and about 100x faster than an ODE solver
+        # the PK model is linear, so the zero-order-hold update is exact (run this file to compare with solve_ivp)
         Ad, Bd = self._discrete(dt)
         self.state = np.maximum(Ad @ self.state + Bd @ u, 0)
         return self.get_bis(self.state[3], self.state[7])

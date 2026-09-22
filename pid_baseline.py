@@ -50,7 +50,7 @@ class PIDController:
         return np.array([u, 0.0], dtype=np.float32), None
 
 
-def load_pid(path='results/pid_gains.json') -> PIDController:
+def load_pid(path='results/pid_gains.json'):
     import json, os
     if os.path.exists(path):
         with open(path) as f:
