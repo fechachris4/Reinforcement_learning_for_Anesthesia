@@ -70,35 +70,24 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
     (mp,) = axb.plot([], [], '.', color=C_PID, ms=3, alpha=0.3)
     (ls,) = axb.plot([], [], color=C_SAC, lw=2.6)
     (lp,) = axb.plot([], [], color=C_PID, lw=2.2)
-    fig.legend([ls, lp], [rl_long, 'PID'], loc='center left', bbox_to_anchor=(0.07, 0.965), ncol=2,
-                     frameon=False, fontsize=14, handlelength=1.5, columnspacing=2.5)
+    # the bolus is off the infusion scale, so its size goes in the legend
+    names = [f'{rl_long} (bolus {S["bol"].sum():.1f} mg/kg)', f'PID (bolus {P["bol"].sum():.1f} mg/kg)']
+    fig.legend([ls, lp], names, loc='center left', bbox_to_anchor=(0.07, 0.965), ncol=2,
+               frameon=False, fontsize=14, handlelength=1.5, columnspacing=2.5)
     for s in ('top', 'right'): axb.spines[s].set_visible(False)
     plt.setp(axb.get_xticklabels(), visible=False)
     # running time in 40-60, from 5 min on (same window as the results table)
     rhead = axb.text(0.995, 0.99, 'in 40-60 since 5 min', transform=axb.transAxes, ha='right', va='top',
-                     fontsize=12, color=MUTED)
+                     fontsize=13, color=MUTED)
     rvals = [axb.text(0.995, 0.92 - 0.075 * k, '', transform=axb.transAxes, ha='right', va='top',
                       fontsize=14, color=c, family='DejaVu Sans Mono') for k, c in enumerate((C_SAC, C_PID))]
 
     # infusion panel
-    axi.set_ylim(0, 21); axi.set_yticks([0, 10, 20]); axi.set_ylabel('Infusion\n(mg/kg/h)')
+    axi.set_ylim(0, 21); axi.set_yticks([0, 10, 20]); axi.set_ylabel('Infusion (mg/kg/h)', fontsize=12)
     axi.set_xlabel('Time (min)'); axi.set_xticks([0, 10, 20, 30, 40])
     (is_,) = axi.step([], [], color=C_SAC, lw=1.8, where='post')
     (ip,) = axi.step([], [], color=C_PID, lw=1.6, where='post')
     for s in ('top', 'right'): axi.spines[s].set_visible(False)
-
-    # induction boluses don't fit on the infusion axis, so state them in a line of text
-    # induction boluses don't fit on the infusion axis, so state them in a line of text, one colour per controller
-    given = [(name, D, c) for name, D, c in ((rl_long, S, C_SAC), ('PID', P, C_PID)) if D['bol'].sum() >= 0.1]
-    t_bolus = max([D['t'][np.argmax(D['bol'] > 0)] for _, D, _ in given], default=0)
-    bolus_texts = [axi.text(0.03, 0.97, 'Bolus, first minute:', transform=axi.transAxes, fontsize=13, color=INK, va='top')]
-    fig.canvas.draw()
-    for name, D, c in given:
-        x = axi.transAxes.inverted().transform(bolus_texts[-1].get_window_extent().corners()[-1])[0] + 0.03
-        bolus_texts.append(axi.text(x, 0.97, f'{name} {D["bol"].sum():.1f} mg/kg', transform=axi.transAxes,
-                                    fontsize=13, color=c, va='top'))
-        fig.canvas.draw()
-    for t in bolus_texts: t.set_visible(False)
 
     def in_range(D, i):
         # from 5 min on, same window as the results table
@@ -118,7 +107,6 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
         for txt, name, D in zip(rvals, (rl_long, 'PID'), (S, P)):
             r = in_range(D, i)
             txt.set_text('' if r is None else f'{name} {r:>4}')
-        for t in bolus_texts: t.set_visible(S['t'][i] >= t_bolus)
         return []
 
     os.makedirs(os.path.dirname(out_mp4), exist_ok=True)
