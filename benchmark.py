@@ -121,16 +121,17 @@ def style(ax):
 def figure_paired(pp):
     rl = [n for n in ('SAC', 'PID + SAC') if n in pp]
     fig, axes = plt.subplots(1, len(rl), figsize=(4.2 * len(rl), 3.8), dpi=150, sharex=True)
-    for ax, n in zip(np.atleast_1d(axes), rl):
+    for k, (ax, n) in enumerate(zip(np.atleast_1d(axes), rl)):
         d = pp[n] - pp['PID']
-        for y in (-1, 1): ax.axhline(y, color='#9CA3AF', lw=1, ls='--')
+        if np.abs(d).max() < 20:   # a +-1 point band is only visible on a small scale
+            for y in (-1, 1): ax.axhline(y, color='#9CA3AF', lw=1, ls='--')
         ax.axhline(0, color='#374151', lw=0.8)
         ax.scatter(pp['PID'], d, s=40, facecolors='none', edgecolors=C[n], lw=1.4)
-        ax.text(0.0, 1.03, n, transform=ax.transAxes, color=C[n], fontsize=13, va='bottom')
+        ax.text(0.0, 1.03, f'({"ab"[k]}) {n}', transform=ax.transAxes, color=C[n], fontsize=13, va='bottom')
         ax.yaxis.set_major_locator(MaxNLocator(integer=True, steps=[1, 2, 5, 10]))
         ax.set_xlabel('PID time in 40-60 (%)', fontsize=12)
+        ax.set_ylabel(f'{n} minus PID (% points)', fontsize=12)
         ax.set_xlim(45, 102); style(ax)
-    np.atleast_1d(axes)[0].set_ylabel('Δ time in 40-60 (points)', fontsize=12)
     fig.tight_layout(); fig.savefig('media/paired_patients.png'); plt.close(fig)
 
 
@@ -146,7 +147,8 @@ def figure_traces(models, idx=(0, 3, 8, 11, 19, 26)):
                 ax.fill_between(t, 0, 100, where=stim, color='#9CA3AF', alpha=0.18, lw=0)
             ax.plot(t, [s['bis'] for s in tr], color=C[lab], lw=1.6, label=lab)
         ax.axhspan(40, 60, color=C_TARGET, alpha=0.18, lw=0)
-        ax.text(0.0, 1.03, describe(pats[i]), transform=ax.transAxes, fontsize=12, va='bottom', ha='left')
+        ax.text(0.98, 0.97, describe(pats[i]), transform=ax.transAxes, fontsize=11, va='top', ha='right',
+                bbox=dict(fc='white', ec='none', pad=1, alpha=0.8))
         ax.set_ylim(0, 100); ax.set_xlim(0, 40); ax.set_xticks([0, 10, 20, 30, 40]); style(ax)
     for ax in axes[:, 0]: ax.set_ylabel('BIS', fontsize=12)
     for ax in axes[1]: ax.set_xlabel('Time (min)', fontsize=12)
