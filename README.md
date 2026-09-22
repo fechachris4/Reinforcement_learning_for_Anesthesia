@@ -6,7 +6,7 @@ This started as coursework in January 2026. That version trained and tested on t
 
 ![PID + SAC vs PID on an unseen patient](media/sac_vs_pid.gif)
 
-*The best case: the 72-year-old test patient where PID + SAC gains most (+12 points averaged over seeds, against +0.4 overall), though it still leaves her near BIS 20 for about 5 min. Dots are the noisy, 20 s delayed BIS the controllers see. [MP4](media/sac_vs_pid.mp4)*
+*Test patient 0 (F, 72 y), shown because PID + SAC gains most here: +12 points averaged over seeds, against +0.4 overall. She still sits near BIS 20 for about 5 min after induction. Dots: the noisy, 20 s delayed BIS the controllers see. [MP4](media/sac_vs_pid.mp4)*
 
 It didn't beat the PID overall. Across 30 test patients, SAC learning corrections on top of the PID ties with it (85% of the time in the 40-60 range for both), and pure SAC is clearly worse (70%).
 
@@ -32,7 +32,7 @@ RL columns are mean ± sd over five seeds. The first four rows are scored from 5
 | Induction bolus (mg/kg) | 1.9 | 2.5 ± 0.0 | 1.9 ± 0.2 |
 | Patients reaching BIS < 20 (%) | 23 | 38 ± 3 | 18 ± 6 |
 
-Against the PID, PID + SAC is +0.4 percentage points on time in range (95% CI −1.0 to +2.0) and SAC is −14.9 (−26.0 to −6.3), bootstrapping over seeds and patients. The other PID + SAC differences are small and uncertain; the largest, fewer patients reaching BIS < 20 (−5 points, −15 to +3), is not significant. All the intervals are in [results/benchmark.md](results/benchmark.md). MDAPE is the median absolute performance error ([Varvel 1992](#references)).
+Against the PID, PID + SAC is +0.4 percentage points on time in range (95% CI -1.0 to +2.0) and SAC is -14.9 (-26.0 to -6.3), bootstrapping over seeds and patients. The other PID + SAC differences are small and uncertain; the largest, fewer patients reaching BIS < 20 (-5 points, -15 to +3), is not significant. All the intervals are in [results/benchmark.md](results/benchmark.md). MDAPE is the median absolute performance error ([Varvel 1992](#references)).
 
 <img src="media/paired_patients.png" width="80%">
 
@@ -46,7 +46,7 @@ Against the PID, PID + SAC is +0.4 percentage points on time in range (95% CI �
 
 Pure SAC found a loophole first. Induction could end on the 3 min timeout with no bolus, so it gave none and then ran the infusion at its limit. A penalty for time above 60 didn't stop it, so I made a 1 mg/kg minimum bolus part of the environment. Now it gives the full 2.5 mg/kg every time, and 38% of patients go below BIS 20.
 
-PID + SAC gave the 8 test patients aged 55 and over a smaller bolus than the PID (1.47 vs 1.67 mg/kg), and their time in range went from 81% to 84%. Younger patients got slightly more (2.10 vs 2.00). Eight patients is a hint, not a result. Its infusion corrections added nothing measurable. My guess, not yet tested, is credit assignment: a dose change shows up in the measured BIS 30 to 60 s later, and the PID partly cancels each correction.
+PID + SAC gave the 8 test patients aged 55 and over a smaller bolus than the PID (1.47 vs 1.67 mg/kg), and their time in range went from 81% to 84%. Younger patients got slightly more (2.10 vs 2.00). With only 8 patients I wouldn't lean on this. The infusion corrections made no measurable difference. I suspect credit assignment, though I haven't tested it: a dose change shows up in the measured BIS 30 to 60 s later, and the PID partly cancels each correction.
 
 Induction is the weak point for all three. Even the PID takes 7 of 30 patients below BIS 20. The 20-year-old (bottom right) is the opposite case: she is sampled as 40% less sensitive to propofol than average and stays above 60 for 17 min under the PID and PID + SAC. SAC's larger bolus gets her down sooner.
 
@@ -54,7 +54,7 @@ Induction is the weak point for all three. Even the PID takes 7 of 30 patients b
 
 | File | |
 |---|---|
-| `EleveldPatient.py` | 3-compartment PK/PD model, stepped exactly with a matrix exponential (matches an ODE solver to 3×10⁻⁷, about 100× faster) |
+| `EleveldPatient.py` | 3-compartment PK/PD model, stepped exactly with a matrix exponential (matches an ODE solver to 1e-9 BIS, about 10x faster; run the file to check) |
 | `patients.py` | Patient sampling; training, tuning and test sets use separate seeds |
 | `AnesthesiaEnv.py` | Gymnasium env: 5 s steps, 40 min case, delayed noisy BIS, stimulation, minimum bolus |
 | `pid_baseline.py`, `tune_pid.py` | PID and its grid search |
