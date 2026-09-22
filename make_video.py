@@ -20,7 +20,7 @@ from AnesthesiaEnv import EPISODE_MIN
 
 from style import COLORS, TARGET as C_TARGET
 C_PID = COLORS['PID']
-INK, MUTED, GRID = '#111827', '#6B7280', '#E5E7EB'
+INK, MUTED = 'k', '0.4'
 
 
 def load_controller(path):
@@ -39,11 +39,11 @@ def arrays(trace):
             'bol': g('bolus_mgkg')}
 
 
-def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SAC', stride_mp4=1, stride_gif=3):
-    S, P = arrays(sac_tr), arrays(pid_tr)
-    C_SAC = COLORS[rl_name]
+def render(rl_tr, pid_tr, out_mp4, out_gif, rl_name='SAC', stride_mp4=1, stride_gif=3):
+    S, P = arrays(rl_tr), arrays(pid_tr)   # S: the RL controller
+    C_RL = COLORS[rl_name]
     n = len(S['t'])
-    plt.rcParams.update({'font.family': 'DejaVu Sans', 'font.size': 14, 'axes.edgecolor': '#9CA3AF',
+    plt.rcParams.update({'font.family': 'DejaVu Sans', 'font.size': 14, 'axes.edgecolor': '0.6',
                          'axes.labelcolor': INK, 'xtick.color': INK, 'ytick.color': INK})
 
     fig = plt.figure(figsize=(12.8, 7.2), dpi=100, facecolor='white')
@@ -56,22 +56,22 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
     # BIS panel
     axb.axhspan(40, 60, color=C_TARGET, alpha=0.12, lw=0)
     stim = S['dist'] > 0.5
-    stim_marks = []   # shown once each event starts
+    stim_marks = []
     if stim.any():
         edges = np.flatnonzero(np.diff(np.r_[0, stim.astype(int), 0]))
         for a, b in zip(edges[::2], edges[1::2]):
-            span = Rectangle((S['t'][a], 0), 0, 1, transform=axb.get_xaxis_transform(), color='#9CA3AF', alpha=0.15, lw=0)
+            span = Rectangle((S['t'][a], 0), 0, 1, transform=axb.get_xaxis_transform(), color='0.6', alpha=0.15, lw=0)
             axb.add_patch(span)
-            label = axb.text(S['t'][a] + 0.3, 2, 'stimulation', fontsize=13, color='#4B5563', va='bottom')
+            label = axb.text(S['t'][a] + 0.3, 2, 'stimulation', fontsize=13, color='0.3', va='bottom')
             stim_marks.append((S['t'][a], S['t'][min(b, n - 1)], span, label))
     axb.set_xlim(0, EPISODE_MIN); axb.set_ylim(0, 100); axb.set_yticks([0, 20, 40, 60, 80, 100])
     axb.set_ylabel('BIS')
-    (ms,) = axb.plot([], [], '.', color=C_SAC, ms=3, alpha=0.3)
+    (ms,) = axb.plot([], [], '.', color=C_RL, ms=3, alpha=0.3)
     (mp,) = axb.plot([], [], '.', color=C_PID, ms=3, alpha=0.3)
-    (ls,) = axb.plot([], [], color=C_SAC, lw=2.6)
+    (ls,) = axb.plot([], [], color=C_RL, lw=2.6)
     (lp,) = axb.plot([], [], color=C_PID, lw=2.2)
     # the bolus is off the infusion scale, so its size goes in the legend
-    names = [f'{rl_long} (bolus {S["bol"].sum():.1f} mg/kg)', f'PID (bolus {P["bol"].sum():.1f} mg/kg)']
+    names = [f'{rl_name} (bolus {S["bol"].sum():.1f} mg/kg)', f'PID (bolus {P["bol"].sum():.1f} mg/kg)']
     fig.legend([ls, lp], names, loc='center left', bbox_to_anchor=(0.07, 0.965), ncol=2,
                frameon=False, fontsize=14, handlelength=1.5, columnspacing=2.5)
     for s in ('top', 'right'): axb.spines[s].set_visible(False)
@@ -80,17 +80,16 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
     rhead = axb.text(0.995, 0.99, 'in 40-60 since 5 min', transform=axb.transAxes, ha='right', va='top',
                      fontsize=13, color=MUTED)
     rvals = [axb.text(0.995, 0.92 - 0.075 * k, '', transform=axb.transAxes, ha='right', va='top',
-                      fontsize=14, color=c, family='DejaVu Sans Mono') for k, c in enumerate((C_SAC, C_PID))]
+                      fontsize=14, color=c, family='DejaVu Sans Mono') for k, c in enumerate((C_RL, C_PID))]
 
     # infusion panel
     axi.set_ylim(0, 21); axi.set_yticks([0, 10, 20]); axi.set_ylabel('Infusion (mg/kg/h)', fontsize=12)
     axi.set_xlabel('Time (min)'); axi.set_xticks([0, 10, 20, 30, 40])
-    (is_,) = axi.step([], [], color=C_SAC, lw=1.8, where='post')
+    (is_,) = axi.step([], [], color=C_RL, lw=1.8, where='post')
     (ip,) = axi.step([], [], color=C_PID, lw=1.6, where='post')
     for s in ('top', 'right'): axi.spines[s].set_visible(False)
 
     def in_range(D, i):
-        # from 5 min on, same window as the results table
         bb = D['bis'][:i + 1][D['t'][:i + 1] >= 5.0]
         return f'{np.mean((bb >= 40) & (bb <= 60)) * 100:.0f}%' if len(bb) else None
 
@@ -104,7 +103,7 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
         for t0, t1, span, label in stim_marks:   # grow each event as it happens
             span.set_width(np.clip(S['t'][i] - t0, 0, t1 - t0)); label.set_visible(S['t'][i] >= t0)
         rhead.set_visible(S['t'][i] >= 5.0)
-        for txt, name, D in zip(rvals, (rl_long, 'PID'), (S, P)):
+        for txt, name, D in zip(rvals, (rl_name, 'PID'), (S, P)):
             r = in_range(D, i)
             txt.set_text('' if r is None else f'{name} {r:>4}')
         return []
@@ -126,7 +125,7 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('--patient', type=int, default=0)
-    ap.add_argument('--model', default='models/sac_seed0.zip')
+    ap.add_argument('--model', default='models/residual_seed4.zip')
     ap.add_argument('--out', default='media/sac_vs_pid.mp4')
     ap.add_argument('--no-gif', action='store_true')
     a = ap.parse_args()
@@ -135,8 +134,7 @@ if __name__ == '__main__':
     pid = load_pid()
     rl = load_controller(a.model)
     residual = 'residual' in os.path.basename(a.model)
-    render(run_episode(rl, patient, seed), run_episode(pid, patient, seed), patient,
+    render(run_episode(rl, patient, seed), run_episode(pid, patient, seed),
            a.out, None if a.no_gif else a.out.replace('.mp4', '.gif'),
-           rl_name='PID + SAC' if residual else 'SAC',
-           rl_long='PID + SAC' if residual else 'SAC')
+           rl_name='PID + SAC' if residual else 'SAC')
     print('wrote', a.out)

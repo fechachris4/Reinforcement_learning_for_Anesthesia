@@ -22,7 +22,6 @@ from pid_baseline import load_pid
 from residual import ResidualPolicy
 
 from style import COLORS as C, TARGET as C_TARGET
-MUTED = '#6B7280'
 ROWS = [('time_in_target', 'Time in 40-60 (%)'),
         ('time_below_40', 'Time below 40 (%)'),
         ('time_above_60', 'Time above 60 (%)'),
@@ -124,8 +123,8 @@ def figure_paired(pp):
     for k, (ax, n) in enumerate(zip(np.atleast_1d(axes), rl)):
         d = pp[n] - pp['PID']
         if np.abs(d).max() < 20:   # a +-1 point band is only visible on a small scale
-            for y in (-1, 1): ax.axhline(y, color='#9CA3AF', lw=1, ls='--')
-        ax.axhline(0, color='#374151', lw=0.8)
+            for y in (-1, 1): ax.axhline(y, color='0.6', lw=1, ls='--')
+        ax.axhline(0, color='0.3', lw=0.8)
         ax.scatter(pp['PID'], d, s=40, facecolors='none', edgecolors=C[n], lw=1.4)
         ax.text(0.0, 1.03, f'({"ab"[k]}) {n}', transform=ax.transAxes, color=C[n], fontsize=13, va='bottom')
         ax.yaxis.set_major_locator(MaxNLocator(integer=True, steps=[1, 2, 5, 10]))
@@ -144,7 +143,7 @@ def figure_traces(models, idx=(0, 3, 8, 11, 19, 26)):
             t = np.array([s['time_min'] for s in tr])
             if k == 0:   # stimulation timing is identical for every controller
                 stim = np.array([s['disturbance'] for s in tr]) > 0.5
-                ax.fill_between(t, 0, 100, where=stim, color='#9CA3AF', alpha=0.18, lw=0)
+                ax.fill_between(t, 0, 100, where=stim, color='0.6', alpha=0.18, lw=0)
             ax.plot(t, [s['bis'] for s in tr], color=C[lab], lw=1.6, label=lab)
         ax.axhspan(40, 60, color=C_TARGET, alpha=0.18, lw=0)
         ax.text(0.0, 1.03, describe(pats[i]), transform=ax.transAxes, fontsize=12, va='bottom', ha='left')
