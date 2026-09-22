@@ -39,7 +39,7 @@ BIS_DELAY_S = 20.0
 BIS_NOISE_SD = 3.0
 FILTER_ALPHA = 0.3
 DELAY_STEPS = int(BIS_DELAY_S / DT_S)
-BIS_UNSAFE = 25.0                 # below this: deep overdose (burst suppression risk)
+BIS_UNSAFE = 25.0                 # extra penalty below this; a 5-point margin above the BIS < 20 overdose metric
 
 # reward
 TRACK_WIDTH = 10.0

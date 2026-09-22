@@ -108,17 +108,17 @@ def style(ax):
 
 
 def figure_paired(pp):
-    fig, ax = plt.subplots(figsize=(4.6, 4.4), dpi=150)
-    ax.fill_between([15, 101], [14, 100], [16, 102], color='#9CA3AF', alpha=0.25, lw=0)   # within 1 point
-    ax.plot([15, 101], [15, 101], color='#6B7280', lw=0.8)
+    fig, ax = plt.subplots(figsize=(5.2, 3.8), dpi=150)
+    ax.axhspan(-1, 1, color='#9CA3AF', alpha=0.45, lw=0)
+    ax.axhline(0, color='#374151', lw=0.8)
     for n, mk in (('SAC', 'o'), ('PID + SAC', '^')):
         if n in pp:
-            ax.scatter(pp['PID'], pp[n], s=44, facecolors='none', edgecolors=C[n], lw=1.4, label=n, marker=mk)
+            ax.scatter(pp['PID'], pp[n] - pp['PID'], s=44, facecolors='none', edgecolors=C[n], lw=1.4,
+                       label=n, marker=mk)
     ax.set_xlabel('PID, time in 40-60 (%)', fontsize=13)
-    ax.set_ylabel('RL, time in 40-60 (%)', fontsize=13)
-    ax.set_xticks([20, 40, 60, 80, 100]); ax.set_yticks([20, 40, 60, 80, 100])
-    ax.set_xlim(18, 101); ax.set_ylim(18, 101); style(ax)
-    ax.legend(frameon=False, loc='upper left', fontsize=13, handletextpad=0.2)
+    ax.set_ylabel('Difference from PID (points)', fontsize=13)
+    ax.set_xlim(45, 102); style(ax)
+    ax.legend(frameon=False, loc='lower left', fontsize=12, handletextpad=0.2)
     fig.tight_layout(); fig.savefig('media/paired_patients.png'); plt.close(fig)
 
 
@@ -132,14 +132,13 @@ def figure_traces(models, idx=(0, 3, 8, 11, 19, 26)):
             if k == 0:   # stimulation timing is identical for every controller
                 stim = np.array([s['disturbance'] for s in tr]) > 0.5
                 ax.fill_between(t, 0, 100, where=stim, color='#9CA3AF', alpha=0.18, lw=0)
-            ax.plot(t, [s['bis'] for s in tr], color=C[lab], lw=1.6 if lab == 'PID + SAC' else 1.4,
-                    ls='--' if lab == 'PID + SAC' else '-', label=lab)
+            ax.plot(t, [s['bis'] for s in tr], color=C[lab], lw=1.6, label=lab)
         ax.axhspan(40, 60, color=C_TARGET, alpha=0.1, lw=0)
-        ax.text(0.98, 0.97, describe(pats[i]), transform=ax.transAxes, fontsize=11, va='top', ha='right')
+        ax.text(0.0, 1.03, describe(pats[i]), transform=ax.transAxes, fontsize=13, va='bottom', ha='left')
         ax.set_ylim(0, 100); ax.set_xlim(0, 40); ax.set_xticks([0, 10, 20, 30, 40]); style(ax)
     for ax in axes[:, 0]: ax.set_ylabel('BIS', fontsize=12)
     for ax in axes[1]: ax.set_xlabel('Time (min)', fontsize=12)
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
     h, l = axes[0, 0].get_legend_handles_labels()
     fig.legend(h, l, loc='upper center', ncol=3, frameon=False, fontsize=12)
     fig.savefig('media/test_traces.png'); plt.close(fig)
