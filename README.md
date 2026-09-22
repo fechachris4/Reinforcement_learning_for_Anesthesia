@@ -6,7 +6,7 @@ This started as coursework in January 2026. The first version trained and tested
 
 ![SAC vs PID on an unseen patient](media/sac_vs_pid.gif)
 
-*A 72-year-old test patient, 40 min of surgery in 30 s. The PID's induction bolus drops her to BIS 9, and she stays below 15 for 7 min. SAC avoids that by leaving her awake for the first 3 min. [MP4](media/sac_vs_pid.mp4)*
+*A 72-year-old test patient, 40 min of surgery in 30 s. The PID's induction bolus drops her to BIS 9, and she stays below 15 for 7 min. SAC avoids that by leaving her awake for the first 3 min. The percentages are time in 40 to 60 so far, induction included. [MP4](media/sac_vs_pid.mp4)*
 
 It didn't. Over 30 unseen patients the PID kept BIS in the 40 to 60 range 81% of the time, pure SAC 71%, and SAC learning corrections on top of the PID 79%.
 
