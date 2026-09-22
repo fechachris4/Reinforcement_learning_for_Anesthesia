@@ -47,7 +47,7 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
                          'axes.labelcolor': INK, 'xtick.color': INK, 'ytick.color': INK})
 
     fig = plt.figure(figsize=(12.8, 7.2), dpi=100, facecolor='white')
-    gs = fig.add_gridspec(2, 1, height_ratios=[3, 0.9], left=0.08, right=0.97, top=0.92, bottom=0.10, hspace=0.12)
+    gs = fig.add_gridspec(2, 1, height_ratios=[3, 1.25], left=0.08, right=0.97, top=0.92, bottom=0.10, hspace=0.12)
     axb = fig.add_subplot(gs[0])
     axi = fig.add_subplot(gs[1], sharex=axb)
 
@@ -81,7 +81,7 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
                       fontsize=14, color=c, family='DejaVu Sans Mono') for k, c in enumerate((C_SAC, C_PID))]
 
     # infusion panel
-    axi.set_ylim(0, 21); axi.set_yticks([0, 10, 20]); axi.set_ylabel('Propofol\n(mg/kg/h)')
+    axi.set_ylim(0, 21); axi.set_yticks([0, 10, 20]); axi.set_ylabel('Infusion\n(mg/kg/h)')
     axi.set_xlabel('Time (min)'); axi.set_xticks([0, 10, 20, 30, 40])
     (is_,) = axi.step([], [], color=C_SAC, lw=1.8, where='post')
     (ip,) = axi.step([], [], color=C_PID, lw=1.6, where='post')
@@ -91,7 +91,7 @@ def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SA
     # induction boluses don't fit on the infusion axis, so state them in a line of text, one colour per controller
     given = [(name, D, c) for name, D, c in ((rl_long, S, C_SAC), ('PID', P, C_PID)) if D['bol'].sum() >= 0.1]
     t_bolus = max([D['t'][np.argmax(D['bol'] > 0)] for _, D, _ in given], default=0)
-    bolus_texts = [axi.text(0.03, 0.97, 'Induction bolus:', transform=axi.transAxes, fontsize=13, color=INK, va='top')]
+    bolus_texts = [axi.text(0.03, 0.97, 'Bolus, first minute:', transform=axi.transAxes, fontsize=13, color=INK, va='top')]
     fig.canvas.draw()
     for name, D, c in given:
         x = axi.transAxes.inverted().transform(bolus_texts[-1].get_window_extent().corners()[-1])[0] + 0.03
