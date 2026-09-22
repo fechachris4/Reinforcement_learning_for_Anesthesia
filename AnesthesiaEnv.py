@@ -51,6 +51,8 @@ BOLUS_W = 0.1
 UNSAFE_PENALTY = 0.5              # per step spent below BIS_UNSAFE
 
 OBS_DIM = 10
+# indices into the observation vector (see _obs)
+OBS_BIS_FILTERED, OBS_BOLUS_LEFT, OBS_MAINTENANCE, OBS_AGE = 0, 5, 6, 7
 
 
 def stimulation_schedule(rng: np.random.Generator) -> list:

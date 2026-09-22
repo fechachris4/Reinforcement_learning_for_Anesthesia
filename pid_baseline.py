@@ -13,7 +13,7 @@ Gains are tuned by grid search on a separate tuning population
 
 import numpy as np
 
-from AnesthesiaEnv import BOLUS_BUDGET, DT
+from AnesthesiaEnv import BOLUS_BUDGET, DT, OBS_BIS_FILTERED, OBS_BOLUS_LEFT, OBS_MAINTENANCE, OBS_AGE
 
 # defaults are overwritten by results/pid_gains.json when present
 DEFAULT_GAINS = {'u0': 0.45, 'kp': 0.02, 'ki': 0.004}
@@ -32,14 +32,14 @@ class PIDController:
         self.bolus_given = 0.0
 
     def predict(self, obs, deterministic=True):
-        error = obs[0] * 50.0                 # filtered BIS - 50
-        in_maintenance = obs[6] > 0.5
-        age = obs[7] * 100.0
+        error = obs[OBS_BIS_FILTERED] * 50.0      # filtered BIS - 50
+        in_maintenance = obs[OBS_MAINTENANCE] > 0.5
+        age = obs[OBS_AGE] * 100.0
 
         if not in_maintenance:
             if self.bolus_target is None:
                 self.bolus_target = 2.0 if age < 55 else 1.5
-            bolus_left = obs[5] * BOLUS_BUDGET
+            bolus_left = obs[OBS_BOLUS_LEFT] * BOLUS_BUDGET
             self.bolus_given = BOLUS_BUDGET - bolus_left
             give = 1.0 if self.bolus_given < self.bolus_target - 1e-6 else 0.0
             return np.array([0.0, give], dtype=np.float32), None
