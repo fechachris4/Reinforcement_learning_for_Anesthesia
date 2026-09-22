@@ -20,8 +20,8 @@ from patients import test_patients, describe
 from pid_baseline import load_pid
 from residual import ResidualPolicy
 
-C = {'PID': '#EA580C', 'SAC': '#9CA3AF', 'PID + SAC': '#2563EB'}
-C_TARGET, MUTED = '#16A34A', '#6B7280'
+from style import COLORS as C, TARGET as C_TARGET
+MUTED = '#6B7280'
 ROWS = [('time_in_target', 'Time in target, BIS 40-60 (%)'),
         ('MDAPE', 'MDAPE, inaccuracy (%)'),
         ('MDPE', 'MDPE, bias (%)'),
@@ -114,7 +114,8 @@ def figure_paired(pp):
     ax.plot([0, 100], [0, 100], color='#D1D5DB', lw=1)
     for n in ('SAC', 'PID + SAC'):
         if n in pp:
-            ax.scatter(pp['PID'], pp[n], s=26, color=C[n], alpha=0.85, label=n)
+            ax.scatter(pp['PID'], pp[n], s=30, color=C[n], alpha=0.85, label=n,
+                       marker='o' if n == 'SAC' else '^')
     ax.set_xlabel('PID: time in target (%)'); ax.set_ylabel('RL controller: time in target (%)')
     ax.set_title('Each dot is one unseen patient', loc='left', fontsize=11)
     ax.text(4, 93, 'above the line: RL better', color=MUTED, fontsize=9)

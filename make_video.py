@@ -18,8 +18,8 @@ from patients import test_patients, describe
 from pid_baseline import load_pid
 from AnesthesiaEnv import EPISODE_MIN, stimulation_schedule
 
-C_SAC, C_PID = '#2563EB', '#EA580C'
-C_TARGET = '#16A34A'
+from style import COLORS, TARGET as C_TARGET
+C_PID = COLORS['PID']
 INK, MUTED, GRID = '#111827', '#6B7280', '#E5E7EB'
 
 
@@ -46,6 +46,7 @@ def zone(b):
 
 def render(sac_tr, pid_tr, patient, out_mp4, out_gif, rl_name='SAC', rl_long='SAC (reinforcement learning)', stride_mp4=1, stride_gif=3):
     S, P = arrays(sac_tr), arrays(pid_tr)
+    C_SAC = COLORS[rl_name]
     n = len(S['t'])
     plt.rcParams.update({'font.family': 'DejaVu Sans', 'font.size': 11, 'axes.edgecolor': GRID,
                          'axes.labelcolor': MUTED, 'xtick.color': MUTED, 'ytick.color': MUTED})
