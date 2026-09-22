@@ -104,7 +104,6 @@ def figure_learning_curves(pid_test):
             ax.plot([r['step'] / 1000 for r in log], [r['time_in_target'] for r in log], color=C[label],
                     lw=1.6, alpha=0.85, label=label if i == 0 else None)
     ax.set_xlabel('training steps (thousands)'); ax.set_ylabel('time in target (%)')
-    ax.set_title('Learning curves (validation patients, not the test set)', loc='left', fontsize=11)
     ax.set_ylim(0, 100); style(ax); ax.legend(frameon=False, loc='lower right')
     fig.tight_layout(); fig.savefig('media/learning_curves.png'); plt.close(fig)
 
@@ -117,7 +116,6 @@ def figure_paired(pp):
             ax.scatter(pp['PID'], pp[n], s=30, color=C[n], alpha=0.85, label=n,
                        marker='o' if n == 'SAC' else '^')
     ax.set_xlabel('PID: time in target (%)'); ax.set_ylabel('RL controller: time in target (%)')
-    ax.set_title('Each dot is one unseen patient', loc='left', fontsize=11)
     ax.text(4, 93, 'above the line: RL better', color=MUTED, fontsize=9)
     ax.set_xlim(0, 100); ax.set_ylim(0, 100); style(ax); ax.legend(frameon=False, loc='lower right')
     fig.tight_layout(); fig.savefig('media/paired_patients.png'); plt.close(fig)
@@ -131,11 +129,10 @@ def figure_traces(model, idx=(0, 3, 8, 11, 19, 26)):
             tr = run_episode(ctrl, pats[i], TEST_NOISE_OFFSET + i)
             ax.plot([s['time_min'] for s in tr], [s['bis'] for s in tr], color=c, lw=1.5, label=lab)
         ax.axhspan(40, 60, color=C_TARGET, alpha=0.1, lw=0)
-        ax.set_title(describe(pats[i]), fontsize=10, loc='left'); ax.set_ylim(0, 100); style(ax)
-    axes[0, 0].legend(frameon=False, loc='upper right')
+        ax.text(0.98, 0.97, describe(pats[i]), transform=ax.transAxes, fontsize=10, va='top', ha='right'); ax.set_ylim(0, 100); style(ax)
+    axes[0, 0].legend(frameon=False, loc='center right')
     for ax in axes[:, 0]: ax.set_ylabel('BIS')
     for ax in axes[1]: ax.set_xlabel('time (min)')
-    fig.suptitle('Held-out test patients (same noise and surgical stimulation for both controllers)', x=0.01, ha='left', fontsize=11)
     fig.tight_layout(); fig.savefig('media/test_traces.png'); plt.close(fig)
 
 

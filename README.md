@@ -46,7 +46,7 @@ Per patient: pure SAC beat the PID on 3 of 30 patients; PID + SAC beat it on 9 o
 
 ![BIS traces on six test patients](media/test_traces.png)
 
-*PID vs PID + SAC on six test patients.*
+*BIS over the 40 min case for six test patients, PID vs PID + SAC. Both controllers get the same monitor noise and surgical stimulation. Shaded band: target range.*
 
 ## Why the RL agents lost
 
