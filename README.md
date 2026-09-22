@@ -6,7 +6,7 @@ This started as coursework in January 2026. That version trained and tested on t
 
 ![PID + SAC vs PID on an unseen patient](media/sac_vs_pid.gif)
 
-*Test patient 0 (F, 72 y), shown because PID + SAC gains most here: +12 points averaged over seeds, against +0.4 overall. She still sits near BIS 20 for about 5 min after induction. Dots: the noisy, 20 s delayed BIS the controllers see. [MP4](media/sac_vs_pid.mp4)*
+*Test patient 0 (F, 72 y), shown because PID + SAC gains most here: +12 points averaged over seeds (+24 for the seed in the video), against +0.4 overall. She still sits near BIS 20 for about 5 min after induction. Dots: the noisy, 20 s delayed BIS the controllers see. [MP4](media/sac_vs_pid.mp4)*
 
 It didn't beat the PID overall. Across 30 test patients, SAC learning corrections on top of the PID ties with it (85% of the time in the 40-60 range for both), and pure SAC is clearly worse (70%).
 
