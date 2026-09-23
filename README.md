@@ -1,5 +1,7 @@
 # Closed-loop propofol control: SAC vs a tuned PID
 
+[![tests](https://github.com/fechachris4/Reinforcement_learning_for_Anesthesia/actions/workflows/tests.yml/badge.svg)](https://github.com/fechachris4/Reinforcement_learning_for_Anesthesia/actions/workflows/tests.yml)
+
 An anaesthetist keeps adjusting the propofol dose during surgery so the patient stays at the right depth. I wanted to know if reinforcement learning (Soft Actor-Critic) could do that job better than a well-tuned PID controller, on patients it had never seen.
 
 This started as coursework in January 2026. That version trained and tested on the same five patients, had a perfect depth signal, and let the agent see the drug concentration inside the body. In September I rebuilt the evaluation so none of that is true any more.
@@ -68,6 +70,7 @@ python train_sac.py --seed 0 --steps 500000              # seeds 0-4
 python train_sac.py --seed 0 --steps 500000 --residual   # seeds 0-4
 python benchmark.py
 python make_video.py --patient 0 --model models/residual_seed4.zip
+python -m unittest discover tests    # ~2 s: patient model vs ODE, env, PID reproduces its column above
 ```
 
 Five seeds of one controller take about 10 min on an Apple M5 laptop, run in parallel (8 simulated patients per run, 2 gradient steps per 8 environment steps).
