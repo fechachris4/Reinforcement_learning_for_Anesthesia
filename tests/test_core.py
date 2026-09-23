@@ -34,7 +34,7 @@ class PatientModelTest(unittest.TestCase):
                           rtol=1e-6, atol=1e-9).y[:, -1]
             bis = p.step(dt, u, 0.0)
             worst = max(worst, abs(bis - p.get_bis(y[3], y[7])))
-        self.assertLess(worst, 1e-6)
+        self.assertLess(worst, 1e-8)  # measured 9.7e-10; README quotes 1e-9
 
     def test_test_and_tuning_patients_do_not_overlap(self):
         def key(p):
