@@ -1,0 +1,15 @@
+name: tests
+on: [push, pull_request]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # The tests need only the patient model, the env and the PID baseline;
+      # torch and stable-baselines3 are for training.
+      - run: pip install gymnasium numpy scipy
+      - run: python -m unittest discover tests -v
