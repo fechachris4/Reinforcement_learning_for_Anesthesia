@@ -8,7 +8,7 @@ This started as coursework in January 2026. That version trained and tested on t
 
 ![PID + SAC vs PID on an unseen patient](media/sac_vs_pid.gif)
 
-*Test patient 0 (F, 72 y), shown because PID + SAC gains most here: +12 points averaged over seeds (+24 for the seed in the video), against +0.4 overall. She still sits near BIS 20 for about 5 min after induction. Dots: the noisy, 20 s delayed BIS the controllers see. [MP4](media/sac_vs_pid.mp4)*
+*Test patient 0 (F, 72 y), shown because PID + SAC gains most here: +12 points averaged over seeds (+24 for the seed in the video), against +0.4 overall. She still sits near BIS 20 for about 5 min after induction. Dots: the noisy, 20 s delayed BIS the controllers see. [MP4 version](media/sac_vs_pid.mp4)*
 
 It didn't beat the PID overall. Across 30 test patients, SAC learning corrections on top of the PID ties with it (85% of the time in the 40-60 range for both), and pure SAC is clearly worse (70%).
 
@@ -36,7 +36,7 @@ RL columns are mean ± sd over five seeds. The first four rows are scored from 5
 
 Against the PID, PID + SAC is +0.4 percentage points on time in range (95% CI -1.0 to +2.0) and SAC is -14.9 (-26.0 to -6.3), bootstrapping over seeds and patients. The other PID + SAC differences are small and uncertain; the largest, fewer patients reaching BIS < 20 (-5 points, -15 to +3), is not significant. All the intervals are in [results/benchmark.md](results/benchmark.md). MDAPE is the median absolute performance error ([Varvel 1992](#references)).
 
-<img src="media/paired_patients.png" width="80%">
+<img src="media/paired_patients.png" width="80%" alt="Per-patient comparison of each RL controller against the PID on the 30 test patients">
 
 *Each point is a test patient, RL averaged over seeds; note the different y scales. (b) PID + SAC gains up to 12 points on patients the PID handles badly and loses up to 4 on others (dashed: ±1).*
 
@@ -52,7 +52,7 @@ PID + SAC gave the 8 test patients aged 55 and over a smaller bolus than the PID
 
 Induction is the weak point for all three. Even the PID takes 7 of 30 patients below BIS 20. The 20-year-old (bottom right) is the opposite case: she is sampled as 40% less sensitive to propofol than average and stays above 60 for 17 min under the PID and PID + SAC. SAC's larger bolus gets her down sooner.
 
-## Code
+## Code and how to run it
 
 | File | |
 |---|---|
@@ -80,6 +80,10 @@ Five seeds of one controller take about 10 min on an Apple M5 laptop, run in par
 Simulation only, with a published population model at reduced variance. BIS only: no blood pressure, no opioid dosing. Stimulation is a simple offset on BIS. Neither RL policy has memory, which is a handicap with a 20 s delay. Not for clinical use.
 
 Next I would test the age effect on more older patients, give the policy memory (recurrent, or a stack of recent BIS and doses), and compare against MPC on the patient model.
+
+## Contact
+
+For questions about the project or the code, [open an issue](https://github.com/fechachris4/Reinforcement_learning_for_Anesthesia/issues) or email fecha412@gmail.com. The repository is maintained by Christian Akabueze.
 
 ## References
 
